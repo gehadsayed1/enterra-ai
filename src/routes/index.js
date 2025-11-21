@@ -10,12 +10,17 @@ import FilesPage from "@/pages/admin/FilesPage.vue";
 import UsersPage from "@/pages/admin/UsersPage.vue";
 import AdminLayout from "@/layouts/AdminLayout.vue";
 import DashboardPage from "@/pages/admin/DashboardPage.vue";
+import NotFound from "@/pages/NotFound.vue";
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: "/login", component: Login },
-
+    {
+      path: "/:pathMatch(.*)*",
+      name: "NotFound",
+      component: NotFound,
+    },
     { path: "/chat", component: Chat, meta: { auth: true } },
 
     {
