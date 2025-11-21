@@ -1,21 +1,48 @@
 @import "tailwindcss";
 
-
-@theme{
-  --color-primary:#5a189a;
-  --color-dark:#0a0908;
-  --color-light:#fdfffc;
-
-
+@theme {
+  --color-primary: #5a189a;
+  --color-dark: #0a0908;
+  --color-light: #fdfffc;
 }
 
-
 @layer utility {
-  .bg-dark{
+  .bg-dark {
     background-color: var(--color-dark);
   }
-  .text-primary{
+  .text-primary {
     color: var(--color-primary);
+  }
+  .chat-dotted-bg {
+    background-image: radial-gradient(#c4c4c4 1px, transparent 1px);
+    background-size: 22px 22px;
+    background-position: 0 0;
+  }
+
+  .stat-card {
+    @apply p-6 bg-white shadow rounded-2xl border border-gray-200 flex flex-col gap-3 transition hover:shadow-lg;
+  }
+
+  .icon {
+    @apply w-12 h-12 rounded-xl flex items-center justify-center;
+  }
+
+  .subtitle {
+    @apply text-gray-600 text-lg font-medium;
+  }
+
+  .value {
+    @apply text-4xl font-bold text-primary tracking-tight;
+    text-shadow: 0 2px 8px rgba(98, 16, 159, 0.25);
+  }
+
+  .input {
+    @apply w-full p-3 border rounded-lg bg-gray-50 text-gray-800 border-gray-300
+    focus:outline-none focus:ring-2 focus:ring-primary;
+  }
+
+  .perm {
+    @apply flex items-center gap-2 text-gray-700 cursor-pointer select-none;
   }
 }
 
@@ -28,9 +55,21 @@
   content: "";
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 30% 20%, rgba(140, 30, 230, 0.18), transparent 60%),
-              radial-gradient(circle at 70% 80%, rgba(255, 150, 255, 0.10), transparent 70%),
-              radial-gradient(circle at 50% 50%, rgba(100, 40, 200, 0.15), transparent 80%);
+  background: radial-gradient(
+      circle at 30% 20%,
+      rgba(140, 30, 230, 0.18),
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at 70% 80%,
+      rgba(255, 150, 255, 0.1),
+      transparent 70%
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      rgba(100, 40, 200, 0.15),
+      transparent 80%
+    );
   filter: blur(80px);
   z-index: 0;
 }

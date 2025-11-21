@@ -1,32 +1,40 @@
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import { save, load } from '@/utils/storage'
+import { defineStore } from "pinia";
+import { ref, watch } from "vue";
 
-export const useFilesStore = defineStore('files', () => {
-  const files = ref(load("superai_files", []))
+export const useFilesStore = defineStore("filesStore", () => {
+  const files = ref(JSON.parse(localStorage.getItem("ent-files") || "[]"));
 
-  function upload(file) {
-    const item = {
+  function addFile(file) {
+    files.value.push({
       id: Date.now(),
       name: file.name,
       size: file.size,
-      type: file.type,
-      url: URL.createObjectURL(file),
-      createdAt: new Date().toISOString()
-    }
+      date: Date.now(),
+      type: "file",
+    });
+  }
 
-    files.value.push(item)
-    save("superai_files", files.value)
+  function addURL(url) {
+    files.value.push({
+      id: Date.now(),
+      name: url,
+      size: 0,
+      date: Date.now(),
+      type: "url",
+    });
   }
 
   function deleteFile(id) {
-    files.value = files.value.filter(f => f.id !== id)
-    save("superai_files", files.value)
+    files.value = files.value.filter((f) => f.id !== id);
   }
 
-  return {
+  watch(
     files,
-    upload,
-    deleteFile
-  }
-})
+    () => {
+      localStorage.setItem("ent-files", JSON.stringify(files.value));
+    },
+    { deep: true }
+  );
+
+  return { files, addFile, addURL, deleteFile };
+});

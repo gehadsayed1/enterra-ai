@@ -36,7 +36,7 @@ export const useChatStore = defineStore('chat', () => {
   function replaceBotLoading(replyText) {
     const msg = messages.value.find(m => m.loading === true)
     if (msg) {
-      msg.loading = true
+      msg.loading = false
       msg.text = replyText
     }
 

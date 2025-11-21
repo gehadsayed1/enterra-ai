@@ -1,37 +1,32 @@
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import { save, load } from '@/utils/storage'
+import { ref, watch } from 'vue';
+import { defineStore } from 'pinia';
 
-export const useUsersStore = defineStore('users', () => {
-  const users = ref(load("superai_users", []))
+export const useUsersStore = defineStore('usersStore', () => {
 
-  function addUser(email, role = "user") {
+  const users = ref(JSON.parse(localStorage.getItem('ent-users') || '[]'));
+
+  function addUser(user) {
     users.value.push({
       id: Date.now(),
-      email,
-      role,
-      createdAt: new Date().toISOString()
-    })
-    save("superai_users", users.value)
+      name: user.name,
+      email: user.email,
+      password: user.password, 
+      role: user.role,
+      permissions: user.permissions ?? {},
+    });
+  }
+
+  function getUserByEmail(email) {
+    return users.value.find(u => u.email.toLowerCase() === email.toLowerCase());
   }
 
   function deleteUser(id) {
-    users.value = users.value.filter(u => u.id !== id)
-    save("superai_users", users.value)
+    users.value = users.value.filter(u => u.id !== id);
   }
 
-  function setRole(id, role) {
-    const u = users.value.find(u => u.id === id)
-    if (u) {
-      u.role = role
-      save("superai_users", users.value)
-    }
-  }
+  watch(users, () => {
+    localStorage.setItem('ent-users', JSON.stringify(users.value));
+  }, { deep: true });
 
-  return {
-    users,
-    addUser,
-    deleteUser,
-    setRole
-  }
-})
+  return { users, addUser, deleteUser, getUserByEmail };
+});

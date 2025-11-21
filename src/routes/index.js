@@ -1,32 +1,48 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import { useAuthStore } from '../stores/authStore'
-import Login from '../pages/Login.vue'
-import Chat from '../pages/Chat.vue'
-// import AdminDashboard from '../pages/AdminDashboard.vue'
+import { createRouter, createWebHistory } from "vue-router";
+import { useAuthStore } from "../stores/authStore";
 
+import Login from "../pages/Login.vue";
+import Chat from "../pages/Chat.vue";
 
+// Admin Pages
 
+import FilesPage from "@/pages/admin/FilesPage.vue";
+import UsersPage from "@/pages/admin/UsersPage.vue";
+import AdminLayout from "@/layouts/AdminLayout.vue";
+import DashboardPage from "@/pages/admin/DashboardPage.vue";
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/login', component: Login },
-    { path: '/chat', component: Chat, meta: { auth: true } },
-    // { path: '/admin', component: AdminDashboard, meta: { auth: true, admin: true } },
-    { path: '/', redirect: '/chat' }
-  ]
-})
+    { path: "/login", component: Login },
+
+    { path: "/chat", component: Chat, meta: { auth: true } },
+
+    {
+      path: "/admin",
+      component: AdminLayout,
+      meta: { auth: true, admin: true },
+      children: [
+        { path: "dashboard", component: DashboardPage },
+        { path: "files", component: FilesPage },
+        { path: "users", component: UsersPage },
+      ],
+    },
+
+    { path: "/", redirect: "/chat" },
+  ],
+});
 
 router.beforeEach((to) => {
-  const auth = useAuthStore()
+  const auth = useAuthStore();
 
   if (to.meta.auth && !auth.isAuthenticated) {
-    return '/login'
+    return "/login";
   }
 
-  if (to.meta.admin && auth.role !== 'admin') {
-    return '/chat'
+  if (to.meta.admin && auth.role !== "admin") {
+    return "/chat";
   }
-})
+});
 
-export default router
+export default router;
