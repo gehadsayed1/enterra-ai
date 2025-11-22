@@ -13,7 +13,7 @@
         ></div>
 
         <h1
-          class="text-3xl font-extrabold text-center mb-20 text-gray-800 dark:text-gray-100"
+          class="text-3xl font-extrabold text-center mb-20 text-white"
         >
           ENTERRA AI
         </h1>
