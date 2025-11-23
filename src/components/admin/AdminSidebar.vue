@@ -1,7 +1,7 @@
 <template>
   <div
     :class="[
-      'h-screen bg-white  shadow-sm transition-all duration-300 flex flex-col justify-between',
+      'min-h-screen bg-white shadow-sm transition-all duration-300 flex flex-col justify-between sticky top-0',
       isOpen ? 'w-60' : 'w-16',
     ]"
   >

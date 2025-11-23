@@ -11,19 +11,26 @@
       </button>
     </div>
 
-    <DataTable :headers="['Name', 'Email', 'Role', 'Permissions', '']">
+    <ModernTable
+      title="Users"
+      :subtitle="`Total: ${users.length} users`"
+      :headers="['Name', 'Email', 'Role', 'Permissions', 'Actions']"
+      :total="users.length"
+      v-model:currentPage="currentPage"
+      v-model:perPage="perPage"
+    >
       <tr
         v-for="u in paginatedUsers"
         :key="u.id"
-        class="border-t border-gray-300 hover:bg-gray-50 transition"
+        class="border-t-2 border-gray-200 hover:bg-gradient-to-r hover:from-purple-50 hover:to-purple-100 transition-all duration-200 group"
       >
-        <td class="p-4">{{ u.name }}</td>
-        <td class="p-4">{{ u.email }}</td>
+        <td class="p-4 font-medium text-gray-800 group-hover:text-purple-700 transition-colors">{{ u.name }}</td>
+        <td class="p-4 font-medium text-gray-600">{{ u.email }}</td>
 
         <td class="p-4">
           <span
             :class="roleStyle(u.role)"
-            class="px-3 py-1 rounded-md text-sm font-medium"
+            class="px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 inline-block"
           >
             {{ u.role }}
           </span>
@@ -40,12 +47,12 @@
                 </span>
              </template>
              
-             <div v-if="getUserPermissions(u).length > 3" class="relative group">
+             <div v-if="getUserPermissions(u).length > 3" class="relative group/tooltip">
                 <span class="px-2 py-1 rounded text-xs font-medium bg-gray-200 text-gray-700 cursor-help">
                     +{{ getUserPermissions(u).length - 3 }} more
                 </span>
                 
-                <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block w-48 bg-gray-800 text-white text-xs rounded p-2 z-10 shadow-lg">
+                <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover/tooltip:block w-48 bg-gray-800 text-white text-xs rounded p-2 z-10 shadow-lg">
                     <div class="flex flex-col gap-1">
                         <span v-for="perm in getUserPermissions(u).slice(3)" :key="perm.id">
                             • {{ perm.label }}
@@ -56,16 +63,16 @@
           </div>
         </td>
 
-        <td class="p-4">
+        <td class="p-4 text-right">
           <button
-            class="text-red-500 hover:text-red-700"
+            class="text-red-500 hover:text-red-700 font-medium transition-all duration-200 hover:scale-110 transform"
             @click="openDelete(u)"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
-              stroke-width="1.5"
+              stroke-width="2"
               stroke="currentColor"
               class="w-6 h-6"
             >
@@ -81,20 +88,11 @@
       </tr>
 
       <tr v-if="users.length === 0">
-        <td colspan="5" class="p-6 text-center text-gray-500 italic">
+        <td colspan="5" class="p-8 text-center text-gray-500 italic text-lg">
           No users added yet.
         </td>
       </tr>
-    </DataTable>
-
-    <Pagination
-      v-if="users.length > 0"
-      :currentPage="currentPage"
-      :perPage="perPage"
-      :total="users.length"
-      @update:currentPage="currentPage = $event"
-      @update:perPage="perPage = $event; currentPage = 1"
-    />
+    </ModernTable>
 
     <UserPermissionsModal 
         v-model="showModal" 
@@ -115,11 +113,10 @@
 <script setup>
 import { useUsersStore } from "@/stores/usersStore";
 import { useRolesStore } from "@/stores/rolesStore";
-import DataTable from "@/components/admin/DataTable.vue";
+import ModernTable from "@/components/admin/ModernTable.vue";
 import ConfirmDelete from "@/components/admin/ConfirmDelete.vue";
 import UserPermissionsModal from "@/components/admin/UserPermissionsModal.vue";
-import Pagination from "@/components/ui/Pagination.vue";
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 
 const usersStore = useUsersStore();
 const rolesStore = useRolesStore();
@@ -136,6 +133,11 @@ const selectedUser = ref(null);
     
 const currentPage = ref(1);
 const perPage = ref(10);
+
+
+watch(perPage, () => {
+  currentPage.value = 1;
+});
 
 const paginatedUsers = computed(() => {
   const start = (currentPage.value - 1) * perPage.value;
