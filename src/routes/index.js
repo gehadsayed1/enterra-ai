@@ -1,16 +1,15 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "../stores/authStore";
 
-import Login from "../pages/Login.vue";
-import Chat from "../pages/Chat.vue";
-
-// Admin Pages
-
-import FilesPage from "@/pages/admin/FilesPage.vue";
-import UsersPage from "@/pages/admin/UsersPage.vue";
-import AdminLayout from "@/layouts/AdminLayout.vue";
-import DashboardPage from "@/pages/admin/DashboardPage.vue";
-import NotFound from "@/pages/NotFound.vue";
+// Lazy Loading
+const Login = () => import("../pages/Login.vue");
+const Chat = () => import("../pages/Chat.vue");
+const FilesPage = () => import("@/pages/admin/FilesPage.vue");
+const UsersPage = () => import("@/pages/admin/UsersPage.vue");
+const AdminLayout = () => import("@/layouts/AdminLayout.vue");
+const DashboardPage = () => import("@/pages/admin/DashboardPage.vue");
+const RolesPage = () => import("@/pages/admin/RolesPage.vue");
+const NotFound = () => import("@/pages/NotFound.vue");
 
 const router = createRouter({
   history: createWebHistory(),
@@ -31,6 +30,7 @@ const router = createRouter({
         { path: "dashboard", component: DashboardPage },
         { path: "files", component: FilesPage },
         { path: "users", component: UsersPage },
+        { path: "roles", component: RolesPage },
       ],
     },
 

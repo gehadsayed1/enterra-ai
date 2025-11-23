@@ -26,6 +26,7 @@ import {
   DocumentIcon,
   UsersIcon,
   ChatBubbleLeftRightIcon,
+  ShieldCheckIcon,
 } from "@heroicons/vue/24/outline";
 import { useRoute } from "vue-router";
 
@@ -46,6 +47,7 @@ const iconComponent = computed(() => {
     document: DocumentIcon,
     users: UsersIcon,
     chat: ChatBubbleLeftRightIcon,
+    roles: ShieldCheckIcon,
   }[props.icon];
 });
 </script>

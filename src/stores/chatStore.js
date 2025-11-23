@@ -1,6 +1,8 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
 import { save, load } from "@/utils/storage";
+import { chatService } from "@/services/chatService";
+
 
 export const useChatStore = defineStore("chat", () => {
   const messages = ref(load("superai_chat", []));
@@ -36,13 +38,35 @@ export const useChatStore = defineStore("chat", () => {
     save("superai_chat", messages.value);
   }
 
+  function addVoiceLoading() {
+    messages.value.push({
+      id: Date.now(),
+      role: "user",
+      text: "",
+      type: "voice",
+      loading: true,
+      createdAt: new Date().toISOString(),
+    });
+    save("superai_chat", messages.value);
+  }
+
   function replaceBotLoading(replyText) {
-    const msg = messages.value.find((m) => m.loading === true);
+    const msg = messages.value.find((m) => m.loading === true && m.role === "bot");
     if (msg) {
       msg.loading = false;
       msg.text = replyText;
     }
 
+    save("superai_chat", messages.value);
+  }
+
+  function replaceVoiceLoading(transcript) {
+    const msg = messages.value.find((m) => m.loading === true && m.role === "user");
+    if (msg) {
+      msg.loading = false;
+      msg.text = transcript;
+      msg.type = "text"; 
+    }
     save("superai_chat", messages.value);
   }
 
@@ -70,6 +94,27 @@ export const useChatStore = defineStore("chat", () => {
 
     save("superai_chat", messages.value);
   }
+async function sendMessageToAPI(userText) {
+  addMessage({ role: "user", text: userText });
+
+  addBotLoading();
+console.log(userText);
+
+  try {
+    const data = await chatService.sendMessage(userText);
+    console.log(data);
+    
+
+    replaceBotLoading(data.answer || "No reply found.");
+  } catch (err) {
+
+    console.log("rerror:", err);
+    
+    replaceBotLoading(
+      err.response?.data?.detail || "Error occurred while fetching response."
+    );
+  }
+}
 
   function clearChat() {
     messages.value = [];
@@ -81,7 +126,10 @@ export const useChatStore = defineStore("chat", () => {
     history,
     addMessage,
     addBotLoading,
+    addVoiceLoading,
     replaceBotLoading,
+    replaceVoiceLoading,
+    sendMessageToAPI,
     newChat,
     loadChat,
     clearChat,

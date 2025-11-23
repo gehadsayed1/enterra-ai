@@ -17,6 +17,6 @@ import { useChatStore } from '@/stores/chatStore';
 const chat = useChatStore()
 
 function handleNewChat() {
-  chat.newChat()    // يعمل حفظ الشات القديم ويفتح واحد جديدة
+  chat.newChat()    
 }
 </script>

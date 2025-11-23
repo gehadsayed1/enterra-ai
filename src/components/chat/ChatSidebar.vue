@@ -19,19 +19,9 @@
         </svg>
       </button>
 
-      <div class="menu-item flex items-center gap-3 p-3 hover:bg-gray-100 cursor-pointer">
-        <HomeIcon class="w-6 h-6 text-primary" />
-        <span v-if="isOpen" class="text-gray-700 font-medium">Home</span>
-      </div>
-
-      <div class="menu-item flex items-center gap-3 p-3 hover:bg-gray-100 cursor-pointer">
+      <div :class="{ 'bg-gray-100 rounded-2xl': isOpen }" class="menu-item flex items-center gap-3 p-3 hover:bg-gray-100 cursor-pointer">
         <ChatBubbleLeftRightIcon class="w-6 h-6 text-primary" />
-        <span v-if="isOpen" class="text-gray-700 font-medium">Chat</span>
-      </div>
-
-      <div class="menu-item flex items-center gap-3 p-3 hover:bg-gray-100 cursor-pointer">
-        <DocumentIcon class="w-6 h-6 text-primary" />
-        <span v-if="isOpen" class="text-gray-700 font-medium">Files</span>
+        <span v-if="isOpen" class="text-gray-700 font-medium">  Chat </span>
       </div>
 
     </div>

@@ -32,48 +32,37 @@
           class="input"
         />
 
-        <select v-model="form.role" class="input">
-          <option value="user">User</option>
-          <option value="viewer">Viewer</option>
-          <option value="admin">Admin</option>
-        </select>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                <select v-model="selectedDeptId" class="input">
+                    <option :value="null" disabled>Select Department</option>
+                    <option v-for="dept in departments" :key="dept.id" :value="dept.id">
+                        {{ dept.name }}
+                    </option>
+                </select>
+            </div>
 
-        <h3 class="text-gray-800 font-semibold mt-6">Permissions</h3>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <label class="perm">
-            <input type="checkbox" v-model="form.permissions.voice" />
-            Send Voice Messages
-          </label>
-
-          <label class="perm">
-            <input type="checkbox" v-model="form.permissions.uploadFiles" />
-            Upload Files
-          </label>
-
-          <label class="perm">
-            <input type="checkbox" v-model="form.permissions.uploadImages" />
-            Upload Images
-          </label>
-
-          <label class="perm">
-            <input
-              type="checkbox"
-              v-model="form.permissions.unlimitedMessages"
-            />
-            Unlimited Messages
-          </label>
-
-          <label class="perm">
-            <input type="checkbox" v-model="form.permissions.fileSearch" />
-            File Search
-          </label>
-
-          <label class="perm">
-            <input type="checkbox" v-model="form.permissions.multiChats" />
-            Multiple Chats
-          </label>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <select v-model="form.roleId" class="input" :disabled="!selectedDeptId">
+                    <option :value="null" disabled>Select Role</option>
+                    <option v-for="role in deptRoles" :key="role.id" :value="role.id">
+                        {{ role.name }}
+                    </option>
+                </select>
+            </div>
         </div>
+
+        <div v-if="selectedRole" class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <h4 class="text-sm font-semibold text-gray-700 mb-2">Permissions for {{ selectedRole.name }}:</h4>
+            <div class="flex flex-wrap gap-2">
+                <span v-for="perm in selectedRole.permissions" :key="perm" class="px-2 py-1 bg-white border border-gray-200 rounded text-xs text-gray-600">
+                    {{ perm }}
+                </span>
+            </div>
+        </div>
+
       </div>
 
       <div class="flex justify-end gap-3 mt-8">
@@ -85,9 +74,11 @@
         </button>
 
         <button
-          class="bg-primary text-white px-8 py-2 rounded-md shadow hover:bg-purple-900"
+          class="bg-primary text-white px-8 py-2 rounded-md shadow hover:bg-purple-900 flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
           @click="submit"
+          :disabled="!form.roleId || loading"
         >
+          <Spinner v-if="loading" />
           {{ isEdit ? "Save Changes" : "Add User" }}
         </button>
       </div>
@@ -95,14 +86,25 @@
   </div>
 </template>
 <script setup>
-import { computed, reactive, watch } from "vue";
+import { computed, reactive, watch, ref } from "vue";
+import { useRolesStore } from "@/stores/rolesStore";
+import Spinner from "@/components/ui/Spinner.vue";
 
 const props = defineProps({
   modelValue: Boolean,
   userData: { type: Object, default: null },
+  loading: Boolean,
 });
 
 const emit = defineEmits(["update:modelValue", "save"]);
+
+const rolesStore = useRolesStore();
+const departments = computed(() => rolesStore.departments);
+
+const selectedDeptId = ref(null);
+const deptRoles = computed(() => 
+    rolesStore.roles.filter(r => r.departmentId === selectedDeptId.value)
+);
 
 const isEdit = computed(() => !!props.userData);
 
@@ -110,31 +112,60 @@ const form = reactive({
   name: "",
   email: "",
   password: "",
-  role: "user",
-  permissions: {
-    voice: false,
-    uploadFiles: true,
-    uploadImages: true,
-    unlimitedMessages: false,
-    fileSearch: true,
-    multiChats: true,
-  },
+  roleId: null,
+  role: "",   
+  departmentId: null,
+  permissions: {},
 });
+
+const selectedRole = computed(() => 
+    rolesStore.roles.find(r => r.id === form.roleId)
+);
 
 watch(
   () => props.userData,
   (val) => {
-    if (!val) return;
-    Object.assign(form, JSON.parse(JSON.stringify(val)));
+    if (!val) {
+        form.name = "";
+        form.email = "";
+        form.password = "";
+        form.roleId = null;
+        selectedDeptId.value = null;
+        return;
+    }
+    
+    form.name = val.name;
+    form.email = val.email;
+    form.password = val.password;
+    form.departmentId = val.departmentId;
+    form.roleId = val.roleId;
+    
+    if (val.departmentId) {
+        selectedDeptId.value = val.departmentId;
+    } else if (val.roleId) {
+        const role = rolesStore.roles.find(r => r.id === val.roleId);
+        if (role) selectedDeptId.value = role.departmentId;
+    }
   },
   { immediate: true }
 );
 
 function submit() {
-  if (!form.name || !form.email || !form.password) return;
+  if (!form.name || !form.email || !form.password || !form.roleId) return;
+
+  const role = selectedRole.value;
+  if (role) {
+      form.role = role.name;
+      form.departmentId = selectedDeptId.value;
+      
+      const permsObj = {};
+      role.permissions.forEach(p => {
+          permsObj[p] = true;
+      });
+      form.permissions = permsObj;
+  }
 
   emit("save", JSON.parse(JSON.stringify(form)));
-
   emit("update:modelValue", false);
 }
 </script>

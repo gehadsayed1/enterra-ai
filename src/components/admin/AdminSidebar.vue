@@ -48,6 +48,12 @@
         to="/admin/users"
         :open="isOpen"
       />
+      <SidebarLink
+        icon="roles"
+        title="Roles & Permissions"
+        to="/admin/roles"
+        :open="isOpen"
+      />
     </div>
 
     <div class="p-4 flex items-center gap-3">

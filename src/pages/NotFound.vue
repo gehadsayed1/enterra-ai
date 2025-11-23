@@ -30,12 +30,6 @@
           Go to Chat
         </button>
 
-        <!-- <button
-          @click="openChat"
-          class="px-6 py-3 rounded-xl border border-gray-200 text-gray-700 bg-white hover:bg-gray-50 transition"
-        >
-          Contact Support
-        </button> -->
       </div>
 
 
@@ -54,20 +48,7 @@ function goHome() {
   router.push('/')
 }
 
-function openChat() {
 
-  router.push('/chat')
-}
 </script>
 
-<style scoped>
-.bg-primary {
-  background-color: #62109f;
-}
-:root {
-  --color-primary: #62109f;
-}
-button.bg-primary {
-  background: var(--color-primary);
-}
-</style>
+

@@ -13,7 +13,7 @@
 
     <DataTable :headers="['Name', 'Email', 'Role', 'Permissions', '']">
       <tr
-        v-for="u in users"
+        v-for="u in paginatedUsers"
         :key="u.id"
         class="border-t border-gray-300 hover:bg-gray-50 transition"
       >
@@ -31,20 +31,28 @@
 
         <td class="p-4">
           <div class="flex flex-wrap gap-2 justify-center">
-            <span v-if="u.permissions?.voice" class="tag purple">Voice</span>
-            <span v-if="u.permissions?.uploadFiles" class="tag blue"
-              >Files</span
-            >
-            <span v-if="u.permissions?.uploadImages" class="tag pink"
-              >Images</span
-            >
-            <span v-if="u.permissions?.unlimitedMessages" class="tag green"
-              >Unlimited</span
-            >
-            <span v-if="u.permissions?.fileSearch" class="tag yellow"
-              >Search</span
-            >
-            <span v-if="u.permissions?.multiChats" class="tag gray">Multi</span>
+             <template v-for="(perm, index) in getUserPermissions(u)" :key="perm.id">
+                <span 
+                    v-if="index < 3"
+                    class="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200"
+                >
+                    {{ perm.label }}
+                </span>
+             </template>
+             
+             <div v-if="getUserPermissions(u).length > 3" class="relative group">
+                <span class="px-2 py-1 rounded text-xs font-medium bg-gray-200 text-gray-700 cursor-help">
+                    +{{ getUserPermissions(u).length - 3 }} more
+                </span>
+                
+                <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 hidden group-hover:block w-48 bg-gray-800 text-white text-xs rounded p-2 z-10 shadow-lg">
+                    <div class="flex flex-col gap-1">
+                        <span v-for="perm in getUserPermissions(u).slice(3)" :key="perm.id">
+                            • {{ perm.label }}
+                        </span>
+                    </div>
+                </div>
+             </div>
           </div>
         </td>
 
@@ -79,10 +87,25 @@
       </tr>
     </DataTable>
 
-    <UserPermissionsModal v-model="showModal" @save="handleNewUser" />
+    <Pagination
+      v-if="users.length > 0"
+      :currentPage="currentPage"
+      :perPage="perPage"
+      :total="users.length"
+      @update:currentPage="currentPage = $event"
+      @update:perPage="perPage = $event; currentPage = 1"
+    />
+
+    <UserPermissionsModal 
+        v-model="showModal" 
+        :userData="selectedUser"
+        :loading="loading"
+        @save="handleNewUser" 
+    />
 
     <ConfirmDelete
       :show="confirmOpen"
+      title="Delete User"
       :message="`Are you sure you want to delete ${selectedUser?.name}?`"
       @cancel="confirmOpen = false"
       @confirm="confirmDelete"
@@ -91,18 +114,34 @@
 </template>
 <script setup>
 import { useUsersStore } from "@/stores/usersStore";
+import { useRolesStore } from "@/stores/rolesStore";
 import DataTable from "@/components/admin/DataTable.vue";
 import ConfirmDelete from "@/components/admin/ConfirmDelete.vue";
 import UserPermissionsModal from "@/components/admin/UserPermissionsModal.vue";
+import Pagination from "@/components/ui/Pagination.vue";
 import { ref, computed } from "vue";
 
 const usersStore = useUsersStore();
+const rolesStore = useRolesStore();
+
 const users = computed(() => usersStore.users);
+const availablePermissions = computed(() => rolesStore.availablePermissions);
 
 const showModal = ref(false);
+const loading = ref(false);
 
 const confirmOpen = ref(false);
 const selectedUser = ref(null);
+
+    
+const currentPage = ref(1);
+const perPage = ref(10);
+
+const paginatedUsers = computed(() => {
+  const start = (currentPage.value - 1) * perPage.value;
+  const end = start + perPage.value;
+  return users.value.slice(start, end);
+});
 
 function openDelete(user) {
   selectedUser.value = user;
@@ -114,8 +153,12 @@ function confirmDelete() {
   confirmOpen.value = false;
 }
 
-function handleNewUser(data) {
+async function handleNewUser(data) {
+  loading.value = true;
+  await new Promise(resolve => setTimeout(resolve, 600));
   usersStore.addUser(data);
+  loading.value = false;
+  showModal.value = false;
 }
 
 function roleStyle(role) {
@@ -123,40 +166,19 @@ function roleStyle(role) {
     admin: "bg-purple-100 text-purple-700",
     user: "bg-blue-100 text-blue-700",
     viewer: "bg-gray-200 text-gray-700",
-  }[role];
+  }[role] || "bg-indigo-100 text-indigo-700";
+}
+
+function getUserPermissions(user) {
+    if (!user.permissions) return [];
+    
+    const allPerms = availablePermissions.value.flatMap(cat => cat.items);
+    
+    return Object.keys(user.permissions)
+        .filter(key => user.permissions[key])
+        .map(key => {
+            const found = allPerms.find(p => p.id === key);
+            return found ? { id: key, label: found.label } : { id: key, label: key };
+        });
 }
 </script>
-
-<style scoped>
-.tag {
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.purple {
-  background: #f3e8ff;
-  color: #7e22ce;
-}
-.blue {
-  background: #dbeafe;
-  color: #1e40af;
-}
-.pink {
-  background: #fce7f3;
-  color: #be185d;
-}
-.green {
-  background: #dcfce7;
-  color: #166534;
-}
-.yellow {
-  background: #fef9c3;
-  color: #a16207;
-}
-.gray {
-  background: #f3f4f6;
-  color: #374151;
-}
-</style>

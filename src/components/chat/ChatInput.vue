@@ -8,14 +8,15 @@
         placeholder="Ask me anything..."
         class="flex-1 resize-none outline-none text-gray-700 placeholder-gray-400 bg-transparent px-1 pt-1"
       ></textarea>
+
       <div
-        @click="isMuted = !isMuted"
-        :class="`w-12 h-12  text-white flex items-center cursor-pointer justify-center rounded-xl ml-3 shrink-0 relative ${
-          isMuted ? 'bg-gray-400' : 'bg-primary'
+        @click="toggleRecording"
+        :class="`w-12 h-12 text-white flex items-center cursor-pointer justify-center rounded-xl ml-3 shrink-0 ${
+          isRecording ? 'bg-red-500 animate-pulse' : 'bg-primary'
         }`"
       >
         <svg
-          v-if="!isMuted"
+          v-if="!isRecording"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
@@ -33,18 +34,11 @@
         <svg
           v-else
           xmlns="http://www.w3.org/2000/svg"
-          fill="none"
+          fill="white"
           viewBox="0 0 24 24"
-          stroke-width="1.5"
-          stroke="currentColor"
-          class="w-6 h-6"
+          class="w-7 h-7"
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M12 1.5a3 3 0 00-3 3V12a3 3 0 006 0V4.5a3 3 0 00-3-3zM19.5 10.5a7.5 7.5 0 01-15 0M12 21v-3"
-          />
-          <path stroke-linecap="round" stroke-linejoin="round" d="M4 20L20 4" />
+          <path d="M6 6l12 12M6 18L18 6" />
         </svg>
       </div>
 
@@ -72,119 +66,174 @@
     <div
       class="flex items-center justify-between gap-6 mt-4 text-sm text-gray-500"
     >
-      <div class="flex items-center gap-6">
-        <!-- Add Attachment -->
-        <div
-          class="flex items-center gap-2 cursor-pointer text-primary"
-          @click="fileInput.click()"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width="1.5"
-            stroke="currentColor"
-            class="w-5 h-5"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M12 4.5v15m7.5-7.5h-15"
-            />
-          </svg>
-          Add Attachment
-        </div>
-
-        <!-- Use Image -->
-        <div
-          class="flex items-center gap-2 cursor-pointer text-primary"
-          @click="imageInput.click()"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke-width="1.5"
-            stroke="currentColor"
-            class="w-5 h-5"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              d="M3 16.5l6-6 4 4 8.5-8.5M21 15v4.5A1.5 1.5 0 0119.5 21H4.5A1.5 1.5 0 013 19.5V4.5A1.5 1.5 0 014.5 3H15"
-            />
-          </svg>
-          Use Image
-        </div>
-      </div>
-
       <span class="text-gray-400 text-xs"> {{ text.length }}/1500 </span>
     </div>
   </div>
+
   <p class="text-center mt-2 text-gray-600 text-md">
     Centra may display inaccurate info, so please double check the response.
     Your Privacy & Centra AI
   </p>
-
-  <input
-    type="file"
-    ref="fileInput"
-    class="hidden"
-    @change="handleFileSelect"
-  />
-
-  <input
-    type="file"
-    accept="image/*"
-    ref="imageInput"
-    class="hidden"
-    @change="handleImageSelect"
-  />
 </template>
 <script setup>
+import { onMounted, onUnmounted, ref } from "vue";
 import { useChatStore } from "@/stores/chatStore";
-import { ref } from "vue";
+import { websocketService } from "@/services/websocketService";
 
-const text = ref("");
 const chat = useChatStore();
+const text = ref("");
 const isMuted = ref(false);
-const fileInput = ref(null);
-const imageInput = ref(null);
 
-function handleFileSelect(event) {
-  const file = event.target.files[0];
-  if (!file) return;
+const isRecording = ref(false);
+let mediaRecorder = null;
+let audioChunks = [];
+let audioContext = null;
+const responseTimeout = ref(null);
 
-  chat.addMessage({
-    role: "user",
-    text: `📎 Attached file: ${file.name}`,
-  });
+function startResponseTimeout() {
+  clearResponseTimeout();
+  responseTimeout.value = setTimeout(() => {
+    console.log("⏰ Timeout reached! Stopping loading...");
+    const errorMsg = "عذراً، لم يتم استلام رد من الخادم. يرجى المحاولة مرة أخرى.";
+    
+    const voiceLoadingMsg = chat.messages.find((m) => m.loading && m.role === 'user');
+    if (voiceLoadingMsg) {
+      chat.replaceVoiceLoading("فشل إرسال الرسالة الصوتية.");
+    }
+    const botLoadingMsg = chat.messages.find((m) => m.loading && m.role === 'bot');
+    if (botLoadingMsg) {
+      chat.replaceBotLoading(errorMsg);
+    } else {
+      chat.addMessage({ role: "bot", text: errorMsg });
+    }
+  }, 15000);
 }
 
-function handleImageSelect(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-
-  chat.addMessage({
-    role: "user",
-    text: ` Attached image: ${file.name}`,
-  });
+function clearResponseTimeout() {
+  if (responseTimeout.value) {
+    clearTimeout(responseTimeout.value);
+    responseTimeout.value = null;
+  }
 }
 
-function submit() {
+
+
+function handleWebSocketMessage(e) {
+  console.log("📩 RAW:", e.data);
+
+  if (typeof e.data !== "string") {
+    console.warn("Binary data ignored");
+    return;
+  }
+
+  let data = null;
+  try {
+    data = JSON.parse(e.data);
+  } catch (err) {
+    console.error("❌ JSON parse failed:", err);
+    return;
+  }
+
+  if (data.type === "full_response") {
+    clearResponseTimeout();
+    console.log("🎙️ Transcript:", data.transcript);
+
+   
+      chat.replaceVoiceLoading(data.transcript);
+
+    chat.addBotLoading();
+
+    setTimeout(() => {
+      chat.replaceBotLoading(data.answer);
+    }, 100);
+
+    if (data.audio && !isMuted.value) {
+      playAudio(data.audio);
+    }
+  }
+}
+
+
+function toggleRecording() {
+  if (isRecording.value) stopRecording();
+  else startRecording();
+}
+
+function startRecording() {
+  navigator.mediaDevices
+    .getUserMedia({ audio: true })
+    .then((stream) => {
+      if (!audioContext) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        audioContext = new AC();
+      }
+      if (audioContext.state === "suspended") audioContext.resume();
+
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+
+      mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+      mediaRecorder.onstop = sendAudio;
+
+      mediaRecorder.start();
+      isRecording.value = true;
+    })
+    .catch((err) => {
+      console.error("❌ Microphone error:", err);
+      alert("⚠️ لا يمكن الوصول للمايكروفون");
+    });
+}
+
+function stopRecording() {
+  if (!mediaRecorder) return;
+  mediaRecorder.stop();
+  mediaRecorder.stream.getTracks().forEach((t) => t.stop());
+  isRecording.value = false;
+}
+
+function sendAudio() {
+  const blob = new Blob(audioChunks, { type: "audio/webm" });
+  websocketService.send(blob);
+  
+  chat.addVoiceLoading();
+  
+  startResponseTimeout();
+}
+
+
+function playAudio(base64) {
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+  const blob = new Blob([bytes], { type: "audio/mp3" });
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  audio.play().finally(() => URL.revokeObjectURL(url));
+}
+
+
+async function submit() {
   if (!text.value.trim()) return;
 
-  chat.addMessage({
-    role: "user",
-    text: text.value,
-  });
-
+  const msg = text.value;
   text.value = "";
 
-  chat.addBotLoading();
-
-  setTimeout(() => {
-    chat.replaceBotLoading("تمام… قولّي عايز تعمل إيه؟");
-  }, 1500);
+  await chat.sendMessageToAPI(msg);
 }
+
+onMounted(() => {
+  console.log("🚀 Component mounted, initializing WebSocket...");
+  websocketService.connect();
+  websocketService.on("onMessage", handleWebSocketMessage);
+});
+
+onUnmounted(() => {
+  console.log("🧹 Component unmounted, cleaning up...");
+  websocketService.off("onMessage", handleWebSocketMessage);
+  websocketService.close(); 
+  
+  if (audioContext) {
+    audioContext.close();
+    audioContext = null;
+  }
+  clearResponseTimeout();
+});
 </script>
