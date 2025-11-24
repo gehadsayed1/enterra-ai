@@ -171,7 +171,5 @@ function submit() {
 </script>
 
 <style>
-input[type="checkbox"] {
-  accent-color: var(--color-primary);
-}
+
 </style>

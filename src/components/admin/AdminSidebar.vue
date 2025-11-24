@@ -38,14 +38,21 @@
       />
       <SidebarLink
         icon="document"
-        title="Files"
+        title="Data Registry"
         to="/admin/files"
         :open="isOpen"
       />
+  
       <SidebarLink
         icon="users"
         title="Users"
         to="/admin/users"
+        :open="isOpen"
+      />
+          <SidebarLink
+        icon="database"
+        title="Data Sources"
+        to="/admin/data-sources"
         :open="isOpen"
       />
       <SidebarLink

@@ -8,6 +8,7 @@ const FilesPage = () => import("@/pages/admin/FilesPage.vue");
 const UsersPage = () => import("@/pages/admin/UsersPage.vue");
 const AdminLayout = () => import("@/layouts/AdminLayout.vue");
 const DashboardPage = () => import("@/pages/admin/DashboardPage.vue");
+const DataSourcesPage = () => import("@/pages/admin/DataSourcesPage.vue");
 const RolesPage = () => import("@/pages/admin/RolesPage.vue");
 const NotFound = () => import("@/pages/NotFound.vue");
 
@@ -29,6 +30,7 @@ const router = createRouter({
       children: [
         { path: "dashboard", component: DashboardPage },
         { path: "files", component: FilesPage },
+        { path: "data-sources", component: DataSourcesPage },
         { path: "users", component: UsersPage },
         { path: "roles", component: RolesPage },
       ],
