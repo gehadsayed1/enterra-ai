@@ -104,7 +104,7 @@ const toast = useToast();
         toast.success("Selected tables saved successfully!");
       } catch (apiError) {
         console.warn("API call failed, saving locally for preview:", apiError);
-        toast.info("Saved locally (API unavailable)");
+        toast.info("Saved to session (API unavailable)");
       }
       
       files.value.push({

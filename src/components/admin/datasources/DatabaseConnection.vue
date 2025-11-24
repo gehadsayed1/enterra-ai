@@ -125,7 +125,7 @@ const fetchTables = async () => {
     // Mock data for UI verification as requested
     console.warn("Using mock data for testing purposes");
     tables.value = ['users', 'products', 'orders', 'inventory', 'logs'];
-    toast.info("Backend unavailable. Using mock tables for preview.");
+    toast.info("Backend unavailable. Showing dummy tables for preview.");
   } finally {
     isFetchingTables.value = false;
   }
