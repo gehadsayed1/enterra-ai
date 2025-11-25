@@ -7,7 +7,7 @@
     class="text-4xl font-extrabold text-center text-white mt-6 w-full"
     style="position: static !important;"
   >
-    الهيئه الهندسية للقوات المسلحة
+    الهيئة الهندسية للقوات المسلحة
   </h1>
 </div>
 
