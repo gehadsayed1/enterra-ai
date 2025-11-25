@@ -1,8 +1,17 @@
 <template>
   <div class="min-h-screen flex bg-gradient-to-br from-[#3e0a6e] to-[#0D0126]">
-    <div class="hidden md:flex w-1/2 items-center justify-center p-10 relative">
-      <img src="../assets/bg.png" alt="Enterra AI" class="max-w-6xl" />
-    </div>
+<div class="hidden md:flex w-1/2 items-center justify-center p-10 flex-col relative">
+  <img src="../assets/logo.png" alt="Enterra AI" class="max-w-4xl" />
+
+  <h1
+    class="text-4xl font-extrabold text-center text-white mt-6 w-full"
+    style="position: static !important;"
+  >
+    الهيئه الهندسية للقوات المسلحة
+  </h1>
+</div>
+
+
 
     <div class="w-full md:w-1/2 flex items-center justify-center p-10">
       <div
