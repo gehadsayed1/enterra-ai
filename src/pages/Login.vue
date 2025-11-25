@@ -4,7 +4,7 @@
   <img src="../assets/logo.png" alt="Enterra AI" class="max-w-4xl" />
 
   <h1
-    class="text-4xl font-extrabold text-center text-white mt-6 w-full"
+    class="text-6xl font-extrabold text-center text-white mt-6 w-full"
     style="position: static !important;"
   >
     الهيئة الهندسية للقوات المسلحة
