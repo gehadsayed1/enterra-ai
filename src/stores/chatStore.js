@@ -121,6 +121,16 @@ console.log(userText);
     save("superai_chat", []);
   }
 
+  function deleteChat(chatId) {
+    history.value = history.value.filter((h) => h.id !== chatId);
+    save("superai_chat_history", history.value);
+  }
+
+  function clearHistory() {
+    history.value = [];
+    save("superai_chat_history", []);
+  }
+
   return {
     messages,
     history,
@@ -133,5 +143,7 @@ console.log(userText);
     newChat,
     loadChat,
     clearChat,
+    deleteChat,
+    clearHistory,
   };
 });

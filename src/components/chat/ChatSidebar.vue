@@ -29,16 +29,24 @@
     <div class="mt-4 px-2">
       <h3 v-if="isOpen" class="text-gray-700 font-medium ml-2">History</h3>
 
-      <div v-if="chat.history.length && isOpen" class="px-2 mt-2 space-y-">
+      <div v-if="chat.history.length && isOpen" class="px-2 mt-2 space-y-1">
         <div v-for="item in chat.history" :key="item.id" @click="openHistoryChat(item)"
-          class="p-2 rounded-lg hover:bg-gray-100 cursor-pointer">
-          <p class="text-gray-700 text-sm truncate">
+          class="group p-2 rounded-lg hover:bg-gray-100 cursor-pointer flex justify-between items-center">
+          <p class="text-gray-700 text-sm truncate flex-1">
             {{ item.title || "Untitled Chat" }}
           </p>
+          <button @click.stop="deleteChat(item.id)" class="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded-full text-gray-400 hover:text-red-500 transition-all">
+            <TrashIcon class="w-4 h-4" />
+          </button>
         </div>
+
+        <button @click="clearAllHistory" class="w-full mt-4 text-xs text-red-500 hover:text-red-700 flex items-center justify-center gap-1 py-2 hover:bg-red-50 rounded-lg transition-colors">
+          <TrashIcon class="w-3 h-3" />
+          Clear History
+        </button>
       </div>
 
-      <div v-if="chat.history.length === 0 && isOpen" class="text-gray-400 text-xs px-3">
+      <div v-if="chat.history.length === 0 && isOpen" class="text-gray-400 text-xs px-3 text-center mt-4">
         No previous chats
       </div>
     </div>
@@ -78,6 +86,13 @@
         </div>
       </div>
     </div>
+    <ConfirmDelete
+      :show="showDeleteConfirm"
+      :title="deleteType === 'single' ? 'Delete Chat' : 'Clear History'"
+      :message="deleteType === 'single' ? 'Are you sure you want to delete this chat?' : 'Are you sure you want to clear all history?'"
+      @cancel="showDeleteConfirm = false"
+      @confirm="confirmDeleteAction"
+    />
   </div>
 
 </template>
@@ -88,10 +103,12 @@ import {
   UserIcon,
   DocumentIcon,
   ChatBubbleLeftRightIcon,
+  TrashIcon,
 } from "@heroicons/vue/24/outline";
 import { useAuthStore } from "@/stores/authStore";
 import { useRouter } from "vue-router"
-import { useChatStore } from "@/stores/chatStore";;
+import { useChatStore } from "@/stores/chatStore";
+import ConfirmDelete from "@/components/admin/ConfirmDelete.vue";
 
 const showMenu = ref(false);
 const router = useRouter();
@@ -102,6 +119,30 @@ const chat = useChatStore();
 function openHistoryChat(h) {
   chat.messages = JSON.parse(JSON.stringify(h.messages))
   router.push("/chat")
+}
+
+const showDeleteConfirm = ref(false);
+const deleteTargetId = ref(null);
+const deleteType = ref('single'); // 'single' or 'all'
+
+function deleteChat(id) {
+  deleteTargetId.value = id;
+  deleteType.value = 'single';
+  showDeleteConfirm.value = true;
+}
+
+function clearAllHistory() {
+  deleteType.value = 'all';
+  showDeleteConfirm.value = true;
+}
+
+function confirmDeleteAction() {
+  if (deleteType.value === 'single' && deleteTargetId.value) {
+    chat.deleteChat(deleteTargetId.value);
+  } else if (deleteType.value === 'all') {
+    chat.clearHistory();
+  }
+  showDeleteConfirm.value = false;
 }
 
 const toggleMenu = () => {

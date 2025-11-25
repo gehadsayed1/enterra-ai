@@ -32,9 +32,13 @@ import ChatGreeting from "@/components/chat/ChatGreeting.vue";
 import ChatWindow from "@/components/chat/ChatWindow.vue";
 import QuickActions from "@/components/chat/QuickActions.vue";
 
-import { ref, watch, nextTick } from "vue";
+import { ref, watch, nextTick, onMounted } from "vue";
 
 const chat = useChatStore();
+
+onMounted(() => {
+  chat.newChat();
+});
 
 const scrollArea = ref(null);
 
