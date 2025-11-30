@@ -174,6 +174,7 @@ function toggleRecording() {
 }
 
 function startRecording() {
+  window.speechSynthesis.cancel(); // Stop any ongoing speech
   if (!recognition.value) {
     if (!initSpeechRecognition()) return;
   }

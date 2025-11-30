@@ -56,10 +56,8 @@ export const useChatStore = defineStore("chat", () => {
     if (msg) {
       msg.loading = false;
       msg.text = replyText;
-      if (options.isVoice) {
-        msg.hasVoicePlayback = true;
-        msg.shouldPlay = true;
-      }
+      msg.hasVoicePlayback = true;
+      msg.shouldPlay = true;
     }
 
     save("superai_chat", messages.value);
