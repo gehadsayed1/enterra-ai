@@ -3,7 +3,6 @@ import { ref } from "vue";
 import { save, load } from "@/utils/storage";
 import { chatService } from "@/services/chatService";
 
-
 export const useChatStore = defineStore("chat", () => {
   const messages = ref(load("superai_chat", []));
 
@@ -50,24 +49,40 @@ export const useChatStore = defineStore("chat", () => {
     save("superai_chat", messages.value);
   }
 
-  function replaceBotLoading(replyText) {
-    const msg = messages.value.find((m) => m.loading === true && m.role === "bot");
+  function replaceBotLoading(replyText, options = {}) {
+    const msg = messages.value.find(
+      (m) => m.loading === true && m.role === "bot"
+    );
     if (msg) {
       msg.loading = false;
       msg.text = replyText;
+      if (options.isVoice) {
+        msg.hasVoicePlayback = true;
+        msg.shouldPlay = true;
+      }
     }
 
     save("superai_chat", messages.value);
   }
 
   function replaceVoiceLoading(transcript) {
-    const msg = messages.value.find((m) => m.loading === true && m.role === "user");
+    const msg = messages.value.find(
+      (m) => m.loading === true && m.role === "user"
+    );
     if (msg) {
       msg.loading = false;
       msg.text = transcript;
-      msg.type = "text"; 
+      msg.type = "text";
     }
     save("superai_chat", messages.value);
+  }
+
+  function markAsPlayed(messageId) {
+    const msg = messages.value.find((m) => m.id === messageId);
+    if (msg) {
+      msg.shouldPlay = false;
+      save("superai_chat", messages.value);
+    }
   }
 
   function newChat() {
@@ -90,31 +105,31 @@ export const useChatStore = defineStore("chat", () => {
     const prev = history.value.find((h) => h.id === chatId);
     if (!prev) return;
 
-    messages.value = [...prev.messages];
+    messages.value = prev.messages.map((m) => ({ ...m, shouldPlay: false }));
 
     save("superai_chat", messages.value);
   }
-async function sendMessageToAPI(userText) {
-  addMessage({ role: "user", text: userText });
 
-  addBotLoading();
-console.log(userText);
+  async function sendMessageToAPI(userText, isVoice = false) {
+    addMessage({ role: "user", text: userText });
 
-  try {
-    const data = await chatService.sendMessage(userText);
-    console.log(data);
-    
+    addBotLoading();
+    console.log(userText);
 
-    replaceBotLoading(data.answer || "No reply found.");
-  } catch (err) {
+    try {
+      const data = await chatService.sendMessage(userText);
+      console.log(data);
 
-    console.log("rerror:", err);
-    
-    replaceBotLoading(
-      err.response?.data?.detail || "Error occurred while fetching response."
-    );
+      replaceBotLoading(data.answer || "No reply found.", { isVoice });
+    } catch (err) {
+      console.log("rerror:", err);
+
+      replaceBotLoading(
+        err.response?.data?.detail || "Error occurred while fetching response.",
+        { isVoice }
+      );
+    }
   }
-}
 
   function clearChat() {
     messages.value = [];
@@ -131,6 +146,9 @@ console.log(userText);
     save("superai_chat_history", []);
   }
 
+  // Initialize: ensure no messages auto-play on reload
+  messages.value.forEach((m) => (m.shouldPlay = false));
+
   return {
     messages,
     history,
@@ -140,6 +158,7 @@ console.log(userText);
     replaceBotLoading,
     replaceVoiceLoading,
     sendMessageToAPI,
+    markAsPlayed,
     newChat,
     loadChat,
     clearChat,

@@ -12,7 +12,7 @@
       <div
         @click="toggleRecording"
         :class="`w-12 h-12 text-white flex items-center cursor-pointer justify-center rounded-xl ml-3 shrink-0 ${
-          isRecording ? 'bg-red-500 animate-pulse' : 'bg-primary'
+          isRecording ? 'bg-black animate-pulse' : 'bg-primary'
         }`"
       >
         <svg
@@ -30,15 +30,25 @@
             d="M12 1.5a3 3 0 00-3 3V12a3 3 0 006 0V4.5a3 3 0 00-3-3zM19.5 10.5a7.5 7.5 0 01-15 0M12 21v-3"
           />
         </svg>
-
         <svg
           v-else
           xmlns="http://www.w3.org/2000/svg"
-          fill="white"
+          fill="none"
           viewBox="0 0 24 24"
-          class="w-7 h-7"
+          stroke-width="1.5"
+          stroke="currentColor"
+          class="w-6 h-6"
         >
-          <path d="M6 6l12 12M6 18L18 6" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M12 1.5a3 3 0 00-3 3V12a3 3 0 006 0V4.5a3 3 0 00-3-3zM19.5 10.5a7.5 7.5 0 01-15 0M12 21v-3"
+          />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M3 3l18 18"
+          />
         </svg>
       </div>
 
@@ -85,9 +95,7 @@ const text = ref("");
 const isMuted = ref(false);
 
 const isRecording = ref(false);
-let mediaRecorder = null;
-let audioChunks = [];
-let audioContext = null;
+
 const responseTimeout = ref(null);
 
 function startResponseTimeout() {
@@ -154,61 +162,88 @@ function handleWebSocketMessage(e) {
 }
 
 
+const recognition = ref(null);
+let baseText = "";
+
 function toggleRecording() {
-  if (isRecording.value) stopRecording();
-  else startRecording();
+  if (isRecording.value) {
+    stopRecording();
+  } else {
+    startRecording();
+  }
 }
 
 function startRecording() {
-  navigator.mediaDevices
-    .getUserMedia({ audio: true })
-    .then((stream) => {
-      if (!audioContext) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        audioContext = new AC();
-      }
-      if (audioContext.state === "suspended") audioContext.resume();
-
-      mediaRecorder = new MediaRecorder(stream);
-      audioChunks = [];
-
-      mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
-      mediaRecorder.onstop = sendAudio;
-
-      mediaRecorder.start();
-      isRecording.value = true;
-    })
-    .catch((err) => {
-      console.error("❌ Microphone error:", err);
-      alert("⚠️ لا يمكن الوصول للمايكروفون");
-    });
+  if (!recognition.value) {
+    if (!initSpeechRecognition()) return;
+  }
+  
+  baseText = text.value ? text.value + " " : ""; // Add space if there is text
+  recognition.value.start();
 }
 
 function stopRecording() {
-  if (!mediaRecorder) return;
-  mediaRecorder.stop();
-  mediaRecorder.stream.getTracks().forEach((t) => t.stop());
-  isRecording.value = false;
+  if (recognition.value) {
+    recognition.value.stop();
+  }
 }
 
-function sendAudio() {
-  const blob = new Blob(audioChunks, { type: "audio/webm" });
-  websocketService.send(blob);
+function initSpeechRecognition() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    alert("⚠️ المتصفح لا يدعم التعرف على الصوت");
+    return false;
+  }
+
+  recognition.value = new SpeechRecognition();
+  recognition.value.lang = 'ar-SA';
+  recognition.value.continuous = true;
+  recognition.value.interimResults = true;
+
+  recognition.value.onstart = () => {
+    isRecording.value = true;
+    isVoiceInput.value = true;
+  };
+
+  recognition.value.onend = () => {
+    isRecording.value = false;
+  };
+
+  recognition.value.onresult = (event) => {
+    let interimTranscript = '';
+    let finalTranscript = '';
+
+    for (let i = event.resultIndex; i < event.results.length; i++) {
+      const transcript = event.results[i][0].transcript;
+      if (event.results[i].isFinal) {
+        finalTranscript += transcript + ' ';
+      } else {
+        interimTranscript += transcript;
+      }
+    }
+    
+    let fullTranscript = '';
+    for (let i = 0; i < event.results.length; i++) {
+       fullTranscript += event.results[i][0].transcript;
+    }
+    
+    text.value = baseText + fullTranscript;
+  };
   
-  chat.addVoiceLoading();
-  
-  startResponseTimeout();
+  recognition.value.onerror = (event) => {
+    console.error("Speech recognition error:", event.error);
+    if (event.error === 'not-allowed') {
+       alert("⚠️ يرجى السماح بالوصول للميكروفون");
+    }
+    isRecording.value = false;
+  };
+
+  return true;
 }
 
 
-function playAudio(base64) {
-  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
-  const blob = new Blob([bytes], { type: "audio/mp3" });
-  const url = URL.createObjectURL(blob);
-  const audio = new Audio(url);
-  audio.play().finally(() => URL.revokeObjectURL(url));
-}
 
+const isVoiceInput = ref(false);
 
 async function submit() {
   if (!text.value.trim()) return;
@@ -216,7 +251,8 @@ async function submit() {
   const msg = text.value;
   text.value = "";
 
-  await chat.sendMessageToAPI(msg);
+  await chat.sendMessageToAPI(msg, isVoiceInput.value);
+  isVoiceInput.value = false;
 }
 
 onMounted(() => {
@@ -230,10 +266,7 @@ onUnmounted(() => {
   websocketService.off("onMessage", handleWebSocketMessage);
   websocketService.close(); 
   
-  if (audioContext) {
-    audioContext.close();
-    audioContext = null;
-  }
+
   clearResponseTimeout();
 });
 </script>
