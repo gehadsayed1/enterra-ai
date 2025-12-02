@@ -88,79 +88,11 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from "vue";
 import { useChatStore } from "@/stores/chatStore";
-import { websocketService } from "@/services/websocketService";
+import { chatService } from "@/services/chatService";
 
 const chat = useChatStore();
 const text = ref("");
-const isMuted = ref(false);
-
 const isRecording = ref(false);
-
-const responseTimeout = ref(null);
-
-function startResponseTimeout() {
-  clearResponseTimeout();
-  responseTimeout.value = setTimeout(() => {
-    console.log("⏰ Timeout reached! Stopping loading...");
-    const errorMsg = "عذراً، لم يتم استلام رد من الخادم. يرجى المحاولة مرة أخرى.";
-    
-    const voiceLoadingMsg = chat.messages.find((m) => m.loading && m.role === 'user');
-    if (voiceLoadingMsg) {
-      chat.replaceVoiceLoading("فشل إرسال الرسالة الصوتية.");
-    }
-    const botLoadingMsg = chat.messages.find((m) => m.loading && m.role === 'bot');
-    if (botLoadingMsg) {
-      chat.replaceBotLoading(errorMsg);
-    } else {
-      chat.addMessage({ role: "bot", text: errorMsg });
-    }
-  }, 15000);
-}
-
-function clearResponseTimeout() {
-  if (responseTimeout.value) {
-    clearTimeout(responseTimeout.value);
-    responseTimeout.value = null;
-  }
-}
-
-
-
-function handleWebSocketMessage(e) {
-  console.log("📩 RAW:", e.data);
-
-  if (typeof e.data !== "string") {
-    console.warn("Binary data ignored");
-    return;
-  }
-
-  let data = null;
-  try {
-    data = JSON.parse(e.data);
-  } catch (err) {
-    console.error("❌ JSON parse failed:", err);
-    return;
-  }
-
-  if (data.type === "full_response") {
-    clearResponseTimeout();
-    console.log("🎙️ Transcript:", data.transcript);
-
-   
-      chat.replaceVoiceLoading(data.transcript);
-
-    chat.addBotLoading();
-
-    setTimeout(() => {
-      chat.replaceBotLoading(data.answer);
-    }, 100);
-
-    if (data.audio && !isMuted.value) {
-      playAudio(data.audio);
-    }
-  }
-}
-
 
 const recognition = ref(null);
 let baseText = "";
@@ -174,7 +106,7 @@ function toggleRecording() {
 }
 
 function startRecording() {
-  window.speechSynthesis.cancel(); // Stop any ongoing speech
+  // تم إزالة window.speechSynthesis.cancel() لتبسيط الكود
   if (!recognition.value) {
     if (!initSpeechRecognition()) return;
   }
@@ -203,7 +135,7 @@ function initSpeechRecognition() {
 
   recognition.value.onstart = () => {
     isRecording.value = true;
-    isVoiceInput.value = true;
+    // تم إزالة isVoiceInput.value = true; لأنه لم يعد مستخدماً
   };
 
   recognition.value.onend = () => {
@@ -243,31 +175,47 @@ function initSpeechRecognition() {
 }
 
 
+// تم إزالة isVoiceInput لأنه لم يعد مستخدماً
 
-const isVoiceInput = ref(false);
 
 async function submit() {
   if (!text.value.trim()) return;
 
   const msg = text.value;
-  text.value = "";
+  text.value = ""; // مسح مربع الإدخال فوراً
 
-  await chat.sendMessageToAPI(msg, isVoiceInput.value);
-  isVoiceInput.value = false;
+  // إضافة رسالة المستخدم
+  chat.addMessage({ role: "user", text: msg });
+  chat.addBotLoading();
+
+  try {
+    // الآن، نستخدم sendMessage فقط، ونتوقع منه الرد النصي ورابط الصوت
+    const data = await chatService.sendMessage(msg);
+    const { answer, audioUrl } = data;
+
+    // استبدال مؤشر التحميل بالرد النصي
+    chat.replaceBotLoading(answer || "No reply found.");
+
+    // تشغيل الصوت إذا كان audioUrl موجوداً
+    if (audioUrl) {
+      try {
+        const audio = new Audio(audioUrl);
+        await audio.play();
+        
+        // ملاحظة: إذا كان audioUrl هو رابط مؤقت (Blob URL)، يجب إلغاءه بعد الانتهاء
+        // إذا كان رابطاً دائماً (S3/CDN)، لا حاجة لإلغائه.
+        // نفترض أنه رابط مؤقت ونقوم بإلغائه كما كان في الكود الأصلي.
+        audio.onended = () => URL.revokeObjectURL(audioUrl);
+      } catch (audioError) {
+        console.error("Failed to play audio:", audioError);
+      }
+    }
+  } catch (error) {
+    console.error("Chat error:", error);
+    chat.replaceBotLoading(
+      error.response?.data?.detail || "عذراً، حدث خطأ في الاتصال بالخادم."
+    );
+  }
 }
 
-onMounted(() => {
-  console.log("🚀 Component mounted, initializing WebSocket...");
-  websocketService.connect();
-  websocketService.on("onMessage", handleWebSocketMessage);
-});
-
-onUnmounted(() => {
-  console.log("🧹 Component unmounted, cleaning up...");
-  websocketService.off("onMessage", handleWebSocketMessage);
-  websocketService.close(); 
-  
-
-  clearResponseTimeout();
-});
 </script>

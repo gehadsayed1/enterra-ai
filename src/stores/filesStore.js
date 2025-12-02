@@ -25,9 +25,9 @@ const toast = useToast();
       if (metadata.departmentId) formData.append("departmentId", metadata.departmentId);
       if (metadata.roleId) formData.append("roleId", metadata.roleId);
 
-      console.log("🚀 [DEBUG] Sending POST request to:", `${CONFIG.API_BASE_URL}/upload/`);
+      console.log("🚀 [DEBUG] Sending POST request to:", `${CONFIG.API_BASE_URL}/upload`);
 
-      const res = await axios.post(`${CONFIG.API_BASE_URL}/upload/`, formData);
+      const res = await axios.post(`${CONFIG.API_BASE_URL}/upload`, formData);
 
       console.log("✅ [DEBUG] Upload success. Response:", res);
       console.log("📦 [DEBUG] Response Data:", res.data.message);
@@ -62,7 +62,7 @@ const toast = useToast();
       if (!Array.isArray(urlList) || urlList.length === 0) return;
 
       const res = await axios.post(
-        `${CONFIG.API_BASE_URL}/process-url/`,
+        `${CONFIG.API_BASE_URL}/process-url`,
         {
           urls: urlList,
           departmentId: metadata.departmentId,

@@ -58,6 +58,9 @@ export const useChatStore = defineStore("chat", () => {
       msg.text = replyText;
       msg.hasVoicePlayback = true;
       msg.shouldPlay = true;
+      if (options.audio) {
+        msg.audio = options.audio;
+      }
     }
 
     save("superai_chat", messages.value);
@@ -115,10 +118,18 @@ export const useChatStore = defineStore("chat", () => {
     console.log(userText);
 
     try {
-      const data = await chatService.sendMessage(userText);
+      let data;
+      if (isVoice) {
+        data = await chatService.sendVoiceMessage(userText);
+      } else {
+        data = await chatService.sendMessage(userText);
+      }
       console.log(data);
 
-      replaceBotLoading(data.answer || "No reply found.", { isVoice });
+      replaceBotLoading(data.answer || "No reply found.", {
+        isVoice,
+        audio: data.audio,
+      });
     } catch (err) {
       console.log("rerror:", err);
 
