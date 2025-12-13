@@ -75,11 +75,6 @@ function handleDrop(e) {
 function handleSave() {
   if (!selectedLocalFile.value) return;
   emit('save', { file: selectedLocalFile.value });
-  // Note: We don't clear the file here immediately. 
-  // The parent component should handle the success and maybe we can expose a reset method or watch a prop.
-  // For now, let's assume the parent handles the upload and we can reset manually if needed, 
-  // but to keep it simple, we'll clear it after emit, assuming the user will confirm in the modal.
-  // Actually, better to wait. But since the modal is a separate step, we can keep the file selected until the action is done.
 }
 
 defineExpose({

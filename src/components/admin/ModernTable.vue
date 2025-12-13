@@ -1,10 +1,9 @@
 <template>
   <div class="bg-white shadow-xl rounded-2xl border border-gray-100 p-8  transition-shadow duration-300">
-    <!-- Header Section -->
     <div class="flex items-center justify-between mb-6">
       <div>
-        <!-- <h2 class="text-2xl font-bold text-gray-800">{{ title }}</h2> -->
-        <!-- <p class="text-sm text-gray-500 mt-1">{{ subtitle }}</p> -->
+        <h2 class="text-2xl font-bold text-gray-800">{{ title }}</h2>
+        <p class="text-sm text-gray-500 mt-1">{{ subtitle }}</p>
       </div>
       <div v-if="showCount" class="bg-gradient-to-r from-purple-100 to-purple-200 px-4 py-2 rounded-lg">
         <span class="text-purple-800 font-bold text-lg">{{ total }}</span>

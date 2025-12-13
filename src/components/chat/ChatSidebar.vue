@@ -123,7 +123,7 @@ function openHistoryChat(h) {
 
 const showDeleteConfirm = ref(false);
 const deleteTargetId = ref(null);
-const deleteType = ref('single'); // 'single' or 'all'
+const deleteType = ref('single'); 
 
 function deleteChat(id) {
   deleteTargetId.value = id;

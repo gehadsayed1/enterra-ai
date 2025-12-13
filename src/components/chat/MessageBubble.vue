@@ -32,7 +32,7 @@
       </div>
 
       <div v-else>
-        {{ msg.text }}
+        <div class="markdown-body" v-html="formattedText"></div>
         
         <div v-if="msg.hasVoicePlayback" class="mt-2 border-t border-gray-100 pt-2">
           <button 
@@ -73,12 +73,20 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref, computed } from 'vue';
 import { useChatStore } from "@/stores/chatStore";
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 
 const props = defineProps(["msg"]);
 const chat = useChatStore();
 const isPlaying = ref(false);
+
+const formattedText = computed(() => {
+  if (!props.msg.text) return '';
+  const rawHtml = marked.parse(props.msg.text);
+  return DOMPurify.sanitize(rawHtml);
+});
 
 function detectLanguage(text) {
   const arabicPattern = /[\u0600-\u06FF]/;
@@ -91,13 +99,10 @@ function detectLanguage(text) {
 
 function getFemaleVoice(lang) {
   const voices = window.speechSynthesis.getVoices();
-  // Match language code (e.g. 'ar' matches 'ar-SA', 'ar-EG')
   const langPrefix = lang.split('-')[0];
   const langVoices = voices.filter(v => v.lang.startsWith(langPrefix));
   
   if (langVoices.length === 0) return null;
-
-  // Heuristic for female voices
   const femaleKeywords = ['female', 'woman', 'hoda', 'zira', 'samantha', 'google', 'amelie', 'hortense', 'monica', 'fiona', 'karen'];
   
   const femaleVoice = langVoices.find(v => {
@@ -109,21 +114,20 @@ function getFemaleVoice(lang) {
 }
 
 function playAudio() {
-  window.speechSynthesis.cancel(); // Stop any previous
+  window.speechSynthesis.cancel(); 
   
   const text = props.msg.text;
   const lang = detectLanguage(text);
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = lang;
   
-  // Ensure voices are loaded
   let voices = window.speechSynthesis.getVoices();
   if (voices.length === 0) {
     window.speechSynthesis.onvoiceschanged = () => {
       const voice = getFemaleVoice(lang);
       if (voice) utter.voice = voice;
       window.speechSynthesis.speak(utter);
-      window.speechSynthesis.onvoiceschanged = null; // Clean up
+      window.speechSynthesis.onvoiceschanged = null; 
     };
   } else {
     const voice = getFemaleVoice(lang);
@@ -143,7 +147,6 @@ function playAudio() {
     isPlaying.value = false;
   };
 
-  // Mark as played so it doesn't auto-play again on reload/remount
   if (props.msg.shouldPlay) {
     chat.markAsPlayed(props.msg.id);
   }
@@ -195,5 +198,65 @@ onUnmounted(() => {
 
 .animate-voice-3 {
   animation: voice 1s infinite ease-in-out 0.4s;
+}
+
+:deep(.markdown-body) {
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+:deep(.markdown-body p) {
+  margin-bottom: 0.5em;
+}
+
+:deep(.markdown-body p:last-child) {
+  margin-bottom: 0;
+}
+
+:deep(.markdown-body ul), :deep(.markdown-body ol) {
+  padding-left: 1.5em;
+  margin-bottom: 0.5em;
+}
+
+:deep(.markdown-body ul) {
+  list-style-type: disc;
+}
+
+:deep(.markdown-body ol) {
+  list-style-type: decimal;
+}
+
+:deep(.markdown-body pre) {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 0.5em;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin-bottom: 0.5em;
+}
+
+:deep(.markdown-body code) {
+  font-family: monospace;
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+:deep(.markdown-body pre code) {
+  background-color: transparent;
+  padding: 0;
+}
+
+:deep(.markdown-body strong) {
+  font-weight: 600;
+}
+
+:deep(.markdown-body em) {
+  font-style: italic;
+}
+
+:deep(.markdown-body a) {
+  text-decoration: underline;
+  color: inherit;
 }
 </style>

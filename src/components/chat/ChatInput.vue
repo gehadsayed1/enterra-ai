@@ -105,13 +105,12 @@ function toggleRecording() {
   }
 }
 
-function startRecording() {
-  // تم إزالة window.speechSynthesis.cancel() لتبسيط الكود
-  if (!recognition.value) {
-    if (!initSpeechRecognition()) return;
+  function startRecording() {
+    if (!recognition.value) {
+      if (!initSpeechRecognition()) return;
   }
   
-  baseText = text.value ? text.value + " " : ""; // Add space if there is text
+  baseText = text.value ? text.value + " " : "";
   recognition.value.start();
 }
 
@@ -135,7 +134,6 @@ function initSpeechRecognition() {
 
   recognition.value.onstart = () => {
     isRecording.value = true;
-    // تم إزالة isVoiceInput.value = true; لأنه لم يعد مستخدماً
   };
 
   recognition.value.onend = () => {
@@ -175,36 +173,26 @@ function initSpeechRecognition() {
 }
 
 
-// تم إزالة isVoiceInput لأنه لم يعد مستخدماً
-
-
 async function submit() {
   if (!text.value.trim()) return;
 
   const msg = text.value;
-  text.value = ""; // مسح مربع الإدخال فوراً
+  text.value = "";
 
-  // إضافة رسالة المستخدم
   chat.addMessage({ role: "user", text: msg });
   chat.addBotLoading();
 
   try {
-    // الآن، نستخدم sendMessage فقط، ونتوقع منه الرد النصي ورابط الصوت
     const data = await chatService.sendMessage(msg);
     const { answer, audioUrl } = data;
 
-    // استبدال مؤشر التحميل بالرد النصي
     chat.replaceBotLoading(answer || "No reply found.");
 
-    // تشغيل الصوت إذا كان audioUrl موجوداً
     if (audioUrl) {
       try {
         const audio = new Audio(audioUrl);
         await audio.play();
         
-        // ملاحظة: إذا كان audioUrl هو رابط مؤقت (Blob URL)، يجب إلغاءه بعد الانتهاء
-        // إذا كان رابطاً دائماً (S3/CDN)، لا حاجة لإلغائه.
-        // نفترض أنه رابط مؤقت ونقوم بإلغائه كما كان في الكود الأصلي.
         audio.onended = () => URL.revokeObjectURL(audioUrl);
       } catch (audioError) {
         console.error("Failed to play audio:", audioError);
