@@ -81,8 +81,8 @@
   </div>
 
   <p class="text-center mt-2 text-gray-600 text-md">
-    Centra may display inaccurate info, so please double check the response.
-    Your Privacy & Interra AI
+    ENTERRA may display inaccurate info, so please double check the response.
+    Your Privacy & ENTERRA AI
   </p>
 </template>
 <script setup>
