@@ -82,7 +82,7 @@
 
   <p class="text-center mt-2 text-gray-600 text-md">
     Centra may display inaccurate info, so please double check the response.
-    Your Privacy & Centra AI
+    Your Privacy & Interra AI
   </p>
 </template>
 <script setup>
