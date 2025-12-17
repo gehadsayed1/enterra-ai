@@ -97,6 +97,23 @@ function detectLanguage(text) {
   return 'en-US';
 }
 
+function cleanTextForSpeech(text) {
+  if (!text) return '';
+
+  return text
+    // شيل Markdown
+    .replace(/[#*_`~>-]/g, '')
+    // شيل روابط markdown
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // شيل أكواد
+    .replace(/```[\s\S]*?```/g, '')
+    // شيل أسطر فاضية زيادة
+    .replace(/\n+/g, ' ')
+    // شيل مسافات زيادة
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function getFemaleVoice(lang) {
   const voices = window.speechSynthesis.getVoices();
   const langPrefix = lang.split('-')[0];
@@ -116,7 +133,7 @@ function getFemaleVoice(lang) {
 function playAudio() {
   window.speechSynthesis.cancel(); 
   
-  const text = props.msg.text;
+ const text = cleanTextForSpeech(props.msg.text);
   const lang = detectLanguage(text);
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = lang;
