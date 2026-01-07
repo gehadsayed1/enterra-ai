@@ -102,6 +102,7 @@
 import { onMounted, onUnmounted, ref, nextTick } from "vue";
 import { useChatStore } from "@/stores/chatStore";
 import { chatService } from "@/services/chatService";
+import html2pdf from 'html2pdf.js';
 import { jsPDF } from 'jspdf';
 import { toPng } from 'html-to-image';
 
@@ -203,37 +204,97 @@ async function submit() {
 
 
 
+
+
+
+// ...
+
 async function exportChat() {
-  const element = document.getElementById('chat-content-area');
-  if (!element) {
-    alert("Could not find chat content to export.");
+  const messages = chat.messages;
+  
+  if (!messages || messages.length === 0) {
+    alert("No chat content to export.");
     return;
   }
+
+  // Create a clean, temporary container for the PDF content
+  // We use inline styles to avoid external CSS issues (like oklch errors)
+  const container = document.createElement('div');
+  container.style.width = '100%'; 
+  container.style.maxWidth = '800px';
+  container.style.margin = '0 auto';
+  container.style.padding = '20px';
+  container.style.fontFamily = 'Helvetica, Arial, sans-serif';
+  container.style.color = '#000000';
+  container.style.backgroundColor = '#ffffff';
   
-  // Show loading state if needed, or simply wait
+  // Add Title
+  const title = document.createElement('h2');
+  title.innerText = "Enterra AI Chat Export";
+  title.style.textAlign = 'center';
+  title.style.borderBottom = '2px solid #333';
+  title.style.paddingBottom = '10px';
+  title.style.marginBottom = '20px';
+  container.appendChild(title);
+
+  // Add Messages
+  messages.forEach(msg => {
+    // Skip loading/system messages
+    if (msg.loading) return;
+    
+    const msgDiv = document.createElement('div');
+    msgDiv.style.marginBottom = '20px';
+    msgDiv.style.paddingBottom = '15px';
+    msgDiv.style.borderBottom = '1px solid #eee';
+    
+    // Detect RTL for Arabic
+    const isArabic = /[\u0600-\u06FF]/.test(msg.text);
+    msgDiv.style.direction = isArabic ? 'rtl' : 'ltr';
+    msgDiv.style.textAlign = isArabic ? 'right' : 'left';
+
+    // Role Label
+    const roleLabel = document.createElement('div');
+    roleLabel.style.fontWeight = 'bold';
+    roleLabel.style.marginBottom = '5px';
+    roleLabel.style.color = msg.role === 'user' ? '#2563eb' : '#4b5563'; // Blue vs Gray
+    roleLabel.innerText = msg.role === 'user' ? 'You:' : 'Enterra AI:';
+    msgDiv.appendChild(roleLabel);
+
+    // Message Text (Handle newlines)
+    const textDiv = document.createElement('div');
+    textDiv.style.lineHeight = '1.6';
+    textDiv.style.whiteSpace = 'pre-wrap'; // Preserve format
+    textDiv.innerText = msg.text || '';
+    msgDiv.appendChild(textDiv);
+
+    container.appendChild(msgDiv);
+  });
+
+  // Temporarily add to body (invisible) to allow rendering
+  // We use a wrapper to hide it from view but allow html2pdf to see it
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'fixed';
+  wrapper.style.top = '-10000px';
+  wrapper.style.left = '0';
+  wrapper.appendChild(container);
+  document.body.appendChild(wrapper);
+
+  const opt = {
+    margin:       10,
+    filename:     `enterra_chat_${new Date().toISOString().slice(0,10)}.pdf`,
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2 },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  };
+
   try {
-     // Configure to skip fonts or handle CORS if needed
-     const dataUrl = await toPng(element, { 
-        backgroundColor: '#ffffff',
-        cacheBust: true,
-     });
-     
-     const pdf = new jsPDF({
-       orientation: 'p',
-       unit: 'mm',
-       format: 'a4',
-     });
-     
-     const imgProps = pdf.getImageProperties(dataUrl);
-     const pdfWidth = pdf.internal.pageSize.getWidth();
-     const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-     
-     pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
-     pdf.save(`enterra_chat_${new Date().toISOString().slice(0,10)}.pdf`);
-     
+    await html2pdf().set(opt).from(container).save();
   } catch (error) {
-     console.error("PDF Export failed:", error);
-     alert("Failed to create PDF. Please use browser print instead.");
+    console.error("Export failed:", error);
+    alert("Failed to export PDF.");
+  } finally {
+    // Cleanup
+    document.body.removeChild(wrapper);
   }
 }
 </script>
