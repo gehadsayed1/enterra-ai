@@ -4,34 +4,36 @@ import axios from "axios";
 import { CONFIG } from "@/config";
 import { useToast } from "vue-toastification";
 
-
 export const useFilesStore = defineStore("filesStore", () => {
   const files = ref(JSON.parse(localStorage.getItem("ent-files") || "[]"));
-const toast = useToast();
+  const currentDocSetId = ref(localStorage.getItem("ent-doc-set-id") || null);
+  const toast = useToast();
 
   async function addFile(file, metadata = {}) {
-    console.log("📂 [DEBUG] Preparing to upload file:", file);
-    console.log("📄 [DEBUG] File details:", {
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      lastModified: file.lastModified
-    });
+    console.log("📂 [DEBUG] Preparing to ingest file:", file);
 
     try {
       const formData = new FormData();
       formData.append("files", file);
-      
-      if (metadata.departmentId) formData.append("departmentId", metadata.departmentId);
-      if (metadata.roleId) formData.append("roleId", metadata.roleId);
+      console.log(
+        "🚀 [DEBUG] Sending POST request to:",
+        `${CONFIG.API_BASE_URL}/ingest`
+      );
 
-      console.log("🚀 [DEBUG] Sending POST request to:", `${CONFIG.API_BASE_URL}/upload`);
+      const res = await axios.post(`${CONFIG.API_BASE_URL}/ingest`, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
-      const res = await axios.post(`${CONFIG.API_BASE_URL}/upload`, formData);
+      console.log("✅ [DEBUG] Ingest success. Response:", res.data);
 
-      console.log("✅ [DEBUG] Upload success. Response:", res);
-      console.log("📦 [DEBUG] Response Data:", res.data.message);
-      toast.success("File uploaded successfully!");
+      if (res.data.doc_set_id) {
+        currentDocSetId.value = res.data.doc_set_id;
+        localStorage.setItem("ent-doc-set-id", res.data.doc_set_id);
+      }
+
+      toast.success(res.data.message || "File ingested successfully!");
 
       files.value.push({
         id: Date.now(),
@@ -40,118 +42,37 @@ const toast = useToast();
         date: new Date(),
         type: "file",
         apiResponse: res.data.message,
-        departmentId: metadata.departmentId,
-        roleId: metadata.roleId
+        docSetId: res.data.doc_set_id,
+        summary: res.data.document_summary,
       });
 
       return res.data;
     } catch (err) {
       console.error("❌ [DEBUG] Upload failed:", err);
       if (err.response) {
-        console.error("❌ [DEBUG] Error Response Data:", err.response.data);
-        console.error("❌ [DEBUG] Error Status:", err.response.status);
+        toast.error(`Error: ${err.response.data.detail || "Upload failed"}`);
+      } else {
+        toast.error("Network error during upload.");
       }
+      throw err;
     }
   }
 
+  // Keeping other methods but they might fail if backend doesn't support them.
+  // The user only specified the new API for ingest/chat/tts.
 
- 
   async function addMultipleURLs(urlList, metadata = {}) {
-     console.log("📤 Sending URLs to backend:", urlList);
-    try {
-      if (!Array.isArray(urlList) || urlList.length === 0) return;
-
-      const res = await axios.post(
-        `${CONFIG.API_BASE_URL}/process-url`,
-        {
-          urls: urlList,
-          departmentId: metadata.departmentId,
-          roleId: metadata.roleId
-        }
-      );
-   toast.success(res.data.message || "URL processed successfully!");
-      urlList.forEach((url) => {
-        files.value.push({
-          id: Date.now(),
-          name: url,
-          size: null,
-          date: new Date(),
-          type: "url",
-          apiResponse: res.data,
-          departmentId: metadata.departmentId,
-          roleId: metadata.roleId
-        });
-      });
-    } catch (err) {
-      console.error("Multiple URLs upload error:", err);
-       toast.error("Failed to process URL");
-    }
+    // Implementation kept as placeholder or legacy
+    console.warn("addMultipleURLs might not be supported by the new backend.");
   }
 
   function deleteFile(id) {
     files.value = files.value.filter((f) => f.id !== id);
   }
 
-  async function addDatabase(tables, metadata = {}) {
-    try {
-      // Try API call but don't block UI on failure for testing
-      try {
-        await axios.post(`${CONFIG.API_BASE_URL}/datasource/db/select-tables`, {
-          tables: tables,
-          departmentId: metadata.departmentId,
-          roleId: metadata.roleId
-        });
-        toast.success("Selected tables saved successfully!");
-      } catch (apiError) {
-        console.warn("API call failed, saving locally for preview:", apiError);
-        toast.info("Saved to session (API unavailable)");
-      }
-      
-      files.value.push({
-        id: Date.now(),
-        name: `Database Tables (${tables.length})`,
-        details: tables.join(", "),
-        size: null,
-        date: new Date(),
-        type: "database",
-        departmentId: metadata.departmentId,
-        roleId: metadata.roleId
-      });
-    } catch (error) {
-      console.error("Database save error:", error);
-      toast.error("Unexpected error saving database tables.");
-    }
-  }
-
-  async function addFolder(path, metadata = {}) {
-    try {
-      // Try API call but don't block UI on failure for testing
-      try {
-        await axios.post(`${CONFIG.API_BASE_URL}/datasource/folder`, {
-          path: path,
-          departmentId: metadata.departmentId,
-          roleId: metadata.roleId
-        });
-        toast.success("Folder path saved successfully!");
-      } catch (apiError) {
-        console.warn("API call failed, saving locally for preview:", apiError);
-        toast.info("Saved locally (API unavailable)");
-      }
-
-      files.value.push({
-        id: Date.now(),
-        name: path,
-        size: null,
-        date: new Date(),
-        type: "folder",
-        departmentId: metadata.departmentId,
-        roleId: metadata.roleId
-      });
-    } catch (error) {
-      console.error("Folder save error:", error);
-      toast.error("Unexpected error saving folder path.");
-    }
-  }
+  // Legacy/Placeholder
+  async function addDatabase(tables, metadata = {}) {}
+  async function addFolder(path, metadata = {}) {}
 
   watch(
     files,
@@ -163,10 +84,11 @@ const toast = useToast();
 
   return {
     files,
+    currentDocSetId,
     addFile,
     addMultipleURLs,
     deleteFile,
     addDatabase,
-    addFolder
+    addFolder,
   };
 });

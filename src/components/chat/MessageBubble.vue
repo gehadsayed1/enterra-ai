@@ -5,7 +5,7 @@
   >
     <div
       :class="[
-        'relative max-w-xl px-4 py-3 rounded-2xl shadow-sm',
+        'relative max-w-xl px-6 py-4 rounded-2xl shadow-sm overflow-hidden break-words',
         msg.role === 'user'
           ? 'bg-primary text-white rounded-br-none'
           : 'bg-white text-gray-800 rounded-bl-none',
@@ -32,7 +32,35 @@
       </div>
 
       <div v-else>
-        <div class="markdown-body" v-html="formattedText"></div>
+        <div class="markdown-body" :dir="messageDirection" v-html="formattedText"></div>
+
+        <!-- Citations Section -->
+        <!-- Citations Section (Collapsible) -->
+        <div v-if="msg.citations && msg.citations.length > 0" class="mt-3 pt-2 border-t border-gray-100">
+            <button 
+              @click="toggleSources"
+              class="flex items-center gap-2 text-xs font-semibold text-gray-500 hover:text-primary transition-colors focus:outline-none"
+            >
+              <span>Sources ({{ msg.citations.length }})</span>
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                viewBox="0 0 20 20" 
+                fill="currentColor" 
+                class="w-4 h-4 transition-transform duration-200"
+                :class="{ 'rotate-180': showSources }"
+              >
+                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+              </svg>
+            </button>
+            
+            <ul v-if="showSources" class="mt-2 text-xs text-gray-600 space-y-1 pl-1">
+                <li v-for="(cite, idx) in msg.citations" :key="idx" class="flex gap-2 items-start">
+                    <span class="text-primary mt-0.5">•</span>
+                    <span class="font-medium break-all">{{ cite.source }}</span>
+                    <span v-if="cite.page" class="text-gray-400 whitespace-nowrap">(p. {{ cite.page }})</span>
+                </li>
+            </ul>
+        </div>
         
         <div v-if="msg.hasVoicePlayback" class="mt-2 border-t border-gray-100 pt-2">
           <button 
@@ -81,11 +109,22 @@ import DOMPurify from 'dompurify';
 const props = defineProps(["msg"]);
 const chat = useChatStore();
 const isPlaying = ref(false);
+const showSources = ref(false);
+let audioObj = null; // Store Audio instance
+
+function toggleSources() {
+  showSources.value = !showSources.value;
+}
 
 const formattedText = computed(() => {
   if (!props.msg.text) return '';
   const rawHtml = marked.parse(props.msg.text);
   return DOMPurify.sanitize(rawHtml);
+});
+
+const messageDirection = computed(() => {
+  if (!props.msg.text) return 'ltr';
+  return detectLanguage(props.msg.text) === 'ar-SA' ? 'rtl' : 'ltr';
 });
 
 function detectLanguage(text) {
@@ -101,15 +140,10 @@ function cleanTextForSpeech(text) {
   if (!text) return '';
 
   return text
-    // شيل Markdown
     .replace(/[#*_`~>-]/g, '')
-    // شيل روابط markdown
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    // شيل أكواد
     .replace(/```[\s\S]*?```/g, '')
-    // شيل أسطر فاضية زيادة
     .replace(/\n+/g, ' ')
-    // شيل مسافات زيادة
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -131,38 +165,70 @@ function getFemaleVoice(lang) {
 }
 
 function playAudio() {
-  window.speechSynthesis.cancel(); 
-  
- const text = cleanTextForSpeech(props.msg.text);
-  const lang = detectLanguage(text);
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = lang;
-  
-  let voices = window.speechSynthesis.getVoices();
-  if (voices.length === 0) {
-    window.speechSynthesis.onvoiceschanged = () => {
-      const voice = getFemaleVoice(lang);
-      if (voice) utter.voice = voice;
-      window.speechSynthesis.speak(utter);
-      window.speechSynthesis.onvoiceschanged = null; 
-    };
+  stopAudio(); // Ensure any previous audio is stopped
+
+  if (props.msg.audio) {
+    // Play server-provided audio (Base64)
+    try {
+      const audioSrc = `data:audio/mp3;base64,${props.msg.audio}`;
+      audioObj = new Audio(audioSrc);
+      
+      audioObj.onplay = () => {
+        isPlaying.value = true;
+      };
+      
+      audioObj.onended = () => {
+        isPlaying.value = false;
+        audioObj = null;
+      };
+      
+      audioObj.onerror = (e) => {
+        console.error("Audio playback error:", e);
+        isPlaying.value = false;
+        audioObj = null;
+      };
+      
+      audioObj.play();
+    } catch (e) {
+      console.error("Error creating audio object:", e);
+    }
   } else {
-    const voice = getFemaleVoice(lang);
-    if (voice) utter.voice = voice;
-    window.speechSynthesis.speak(utter);
+    // Fallback to browser TTS
+    window.speechSynthesis.cancel(); 
+    
+    const text = cleanTextForSpeech(props.msg.text);
+    const lang = detectLanguage(text);
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = lang;
+    
+    let voices = window.speechSynthesis.getVoices();
+    const speak = () => {
+         const voice = getFemaleVoice(lang);
+         if (voice) utter.voice = voice;
+         window.speechSynthesis.speak(utter);
+    };
+
+    if (voices.length === 0) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        speak();
+        window.speechSynthesis.onvoiceschanged = null; 
+      };
+    } else {
+      speak();
+    }
+    
+    utter.onstart = () => {
+      isPlaying.value = true;
+    };
+    
+    utter.onend = () => {
+      isPlaying.value = false;
+    };
+    
+    utter.onerror = () => {
+      isPlaying.value = false;
+    };
   }
-  
-  utter.onstart = () => {
-    isPlaying.value = true;
-  };
-  
-  utter.onend = () => {
-    isPlaying.value = false;
-  };
-  
-  utter.onerror = () => {
-    isPlaying.value = false;
-  };
 
   if (props.msg.shouldPlay) {
     chat.markAsPlayed(props.msg.id);
@@ -170,6 +236,11 @@ function playAudio() {
 }
 
 function stopAudio() {
+  if (audioObj) {
+    audioObj.pause();
+    audioObj.currentTime = 0;
+    audioObj = null;
+  }
   window.speechSynthesis.cancel();
   isPlaying.value = false;
 }
@@ -231,7 +302,7 @@ onUnmounted(() => {
 }
 
 :deep(.markdown-body ul), :deep(.markdown-body ol) {
-  padding-left: 1.5em;
+  padding-inline-start: 1.5em;
   margin-bottom: 0.5em;
 }
 

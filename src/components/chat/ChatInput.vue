@@ -179,31 +179,8 @@ async function submit() {
   const msg = text.value;
   text.value = "";
 
-  chat.addMessage({ role: "user", text: msg });
-  chat.addBotLoading();
-
-  try {
-    const data = await chatService.sendMessage(msg);
-    const { answer, audioUrl } = data;
-
-    chat.replaceBotLoading(answer || "No reply found.");
-
-    if (audioUrl) {
-      try {
-        const audio = new Audio(audioUrl);
-        await audio.play();
-        
-        audio.onended = () => URL.revokeObjectURL(audioUrl);
-      } catch (audioError) {
-        console.error("Failed to play audio:", audioError);
-      }
-    }
-  } catch (error) {
-    console.error("Chat error:", error);
-    chat.replaceBotLoading(
-      error.response?.data?.detail || "عذراً، حدث خطأ في الاتصال بالخادم."
-    );
-  }
+  // The chat store now handles the message adding, loading state, and API call sequence
+  await chat.sendMessageToAPI(msg);
 }
 
 </script>

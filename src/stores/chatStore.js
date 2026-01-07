@@ -2,11 +2,24 @@ import { defineStore } from "pinia";
 import { ref } from "vue";
 import { save, load } from "@/utils/storage";
 import { chatService } from "@/services/chatService";
+import { useFilesStore } from "./filesStore";
 
 export const useChatStore = defineStore("chat", () => {
   const messages = ref(load("superai_chat", []));
-
   const history = ref(load("superai_chat_history", []));
+
+  // Session management
+  const threadId = ref(
+    localStorage.getItem("ent-thread-id") || `thread_${Date.now()}`
+  );
+  const userId = ref(
+    localStorage.getItem("ent-user-id") || `user_${Date.now()}`
+  );
+
+  if (!localStorage.getItem("ent-thread-id"))
+    localStorage.setItem("ent-thread-id", threadId.value);
+  if (!localStorage.getItem("ent-user-id"))
+    localStorage.setItem("ent-user-id", userId.value);
 
   function addMessage(msg) {
     const isFirstMessage = messages.value.length === 0;
@@ -59,7 +72,10 @@ export const useChatStore = defineStore("chat", () => {
       msg.hasVoicePlayback = true;
       msg.shouldPlay = true;
       if (options.audio) {
-        msg.audio = options.audio;
+        msg.audio = options.audio; // Can be Base64 string now
+      }
+      if (options.citations) {
+        msg.citations = options.citations;
       }
     }
 
@@ -99,6 +115,8 @@ export const useChatStore = defineStore("chat", () => {
     }
 
     messages.value = [];
+    threadId.value = `thread_${Date.now()}`;
+    localStorage.setItem("ent-thread-id", threadId.value);
     save("superai_chat", []);
   }
 
@@ -117,18 +135,30 @@ export const useChatStore = defineStore("chat", () => {
     addBotLoading();
     console.log(userText);
 
+    const filesStore = useFilesStore();
+    const docSetId = filesStore.currentDocSetId;
+
+    if (!docSetId) {
+      replaceBotLoading("⚠️ Please upload a document to start the chat.");
+      return;
+    }
+
     try {
-      let data;
-      if (isVoice) {
-        data = await chatService.sendVoiceMessage(userText);
-      } else {
-        data = await chatService.sendMessage(userText);
-      }
+      // isVoice is ignored for logic now as we treat all as chat message,
+      // but response might have audio if server generates it.
+
+      const data = await chatService.sendMessage(
+        userText,
+        docSetId,
+        threadId.value,
+        userId.value
+      );
       console.log(data);
 
       replaceBotLoading(data.answer || "No reply found.", {
         isVoice,
         audio: data.audio,
+        citations: data.citations,
       });
     } catch (err) {
       console.log("rerror:", err);
