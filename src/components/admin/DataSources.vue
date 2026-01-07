@@ -1,8 +1,9 @@
 <template>
   <div class="space-y-6">
+    <FileUpload ref="fileUploadRef" @save="(data) => handleRequestSave('file', data)" />
     <DatabaseConnection @save="(data) => handleRequestSave('db', data)" />
     <LocalFolder @save="(data) => handleRequestSave('folder', data)" />
-    <FileUpload ref="fileUploadRef" @save="(data) => handleRequestSave('file', data)" />
+    
     <WebsiteUrls ref="websiteUrlsRef" @save="(data) => handleRequestSave('url', data)" />
 
     <RoleSelectionModal

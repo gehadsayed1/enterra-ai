@@ -33,7 +33,7 @@ export const useFilesStore = defineStore("filesStore", () => {
         localStorage.setItem("ent-doc-set-id", res.data.doc_set_id);
       }
 
-      toast.success(res.data.message || "File ingested successfully!");
+      toast.success("File and context prepared successfully");
 
       files.value.push({
         id: Date.now(),

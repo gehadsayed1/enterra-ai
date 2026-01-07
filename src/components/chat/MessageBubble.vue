@@ -32,7 +32,13 @@
       </div>
 
       <div v-else>
-        <div class="markdown-body" :dir="messageDirection" v-html="formattedText"></div>
+        <!-- Normal Text (Hidden if it's an export confirmation) -->
+        <div v-if="!isExportMessage" class="markdown-body" :dir="messageDirection" v-html="formattedText"></div>
+        
+        <!-- Alternate Text for Export -->
+        <div v-else class="text-gray-800 font-medium pb-2">
+           You can download the file from here:
+        </div>
 
         <!-- Citations Section -->
         <!-- Citations Section (Collapsible) -->
@@ -85,6 +91,19 @@
             Play Audio
           </button>
         </div>
+        
+        <!-- Download Export Button (If detected) -->
+        <div v-if="isExportMessage" class="mt-3 pt-2 border-t border-gray-100">
+           <button 
+             @click="downloadExport"
+             class="flex items-center gap-2 bg-purple-50 text-primary px-3 py-2 rounded-lg text-xs font-semibold hover:bg-purple-100 transition-colors w-full justify-center"
+           >
+             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+               <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+             </svg>
+             Download Word File
+           </button>
+        </div>
       </div>
 
       <span
@@ -134,6 +153,21 @@ function detectLanguage(text) {
   if (arabicPattern.test(text)) return 'ar-SA';
   if (frenchPattern.test(text)) return 'fr-FR';
   return 'en-US';
+}
+
+const isExportMessage = computed(() => {
+  const txt = props.msg.text?.toLowerCase() || '';
+  // Check for keywords indicating a file was created
+  return txt.includes('exported') && (txt.includes('word file') || txt.includes('.docx'));
+});
+
+function downloadExport() {
+  if (chat && typeof chat.exportChatToWord === 'function') {
+    chat.exportChatToWord();
+  } else {
+    console.error("Export function not found in chat store");
+    alert("Function not available, please reload page.");
+  }
 }
 
 function cleanTextForSpeech(text) {

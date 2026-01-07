@@ -1,5 +1,5 @@
 <template>
-  <div class="px-10 pb-10 pt-3 flex flex-col gap-4">
+  <div id="chat-content-area" class="px-10 pb-10 pt-3 flex flex-col gap-4">
     <MessageBubble 
       v-for="msg in messages" 
       :key="msg.id" 

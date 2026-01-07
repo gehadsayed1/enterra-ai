@@ -37,8 +37,34 @@ class ChatService {
     }
   }
 
-  // تم إزالة دالة sendVoiceMessage لأنها لم تعد ضرورية.
-  // سيتم استخدام sendMessage لجميع أنواع الإرسال.
+  /**
+   * Exports the current chat thread to a Word document.
+   * @param {string} docSetId
+   * @param {string} threadId
+   * @returns {Promise<Blob>}
+   */
+  async exportDocx(docSetId, threadId) {
+    try {
+      const response = await axios.post(
+        `${CONFIG.API_BASE_URL}/export-to-word`,
+        {
+          message: "Requesting export", // Backend needs a dummy message or context
+          doc_set_id: docSetId,
+          thread_id: threadId,
+        },
+        {
+          responseType: "blob", // Important for binary files
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      return response.data;
+    } catch (error) {
+      console.error("Export Error:", error);
+      throw error;
+    }
+  }
 }
 
 export const chatService = new ChatService();

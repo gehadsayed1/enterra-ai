@@ -22,7 +22,9 @@
         class="w-full border-gray-300 rounded-lg shadow-sm focus:border-primary focus:ring focus:ring-primary/20 p-2 border"
         :disabled="!departmentId"
       >
-        <option :value="null" disabled>Select Role</option>
+        <option :value="null" disabled>
+          {{ departmentId ? 'Select Role' : 'Select Department First...' }}
+        </option>
         <option v-for="role in deptRoles" :key="role.id" :value="role.id">
           {{ role.name }}
         </option>

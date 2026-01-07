@@ -9,6 +9,8 @@
         class="flex-1 resize-none outline-none text-gray-700 placeholder-gray-400 bg-transparent px-1 pt-1"
       ></textarea>
 
+
+
       <div
         @click="toggleRecording"
         :class="`w-12 h-12 text-white flex items-center cursor-pointer justify-center rounded-xl ml-3 shrink-0 ${
@@ -77,6 +79,17 @@
       class="flex items-center justify-between gap-6 mt-4 text-sm text-gray-500"
     >
       <span class="text-gray-400 text-xs"> {{ text.length }}/1500 </span>
+
+      <button
+        class="flex items-center gap-1.5 text-xs text-gray-500 hover:text-primary transition px-2 py-1 rounded-md hover:bg-gray-100"
+        title="Export Chat to Word"
+        @click="exportChat"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+        </svg>
+        <span>Export Chat</span>
+      </button>
     </div>
   </div>
 
@@ -86,9 +99,12 @@
   </p>
 </template>
 <script setup>
-import { onMounted, onUnmounted, ref } from "vue";
+import { onMounted, onUnmounted, ref, nextTick } from "vue";
 import { useChatStore } from "@/stores/chatStore";
 import { chatService } from "@/services/chatService";
+import { jsPDF } from 'jspdf';
+import { toPng } from 'html-to-image';
+
 
 const chat = useChatStore();
 const text = ref("");
@@ -178,9 +194,46 @@ async function submit() {
 
   const msg = text.value;
   text.value = "";
+  
+  await nextTick(); // Ensure UI updates immediately
 
   // The chat store now handles the message adding, loading state, and API call sequence
   await chat.sendMessageToAPI(msg);
 }
 
+
+
+async function exportChat() {
+  const element = document.getElementById('chat-content-area');
+  if (!element) {
+    alert("Could not find chat content to export.");
+    return;
+  }
+  
+  // Show loading state if needed, or simply wait
+  try {
+     // Configure to skip fonts or handle CORS if needed
+     const dataUrl = await toPng(element, { 
+        backgroundColor: '#ffffff',
+        cacheBust: true,
+     });
+     
+     const pdf = new jsPDF({
+       orientation: 'p',
+       unit: 'mm',
+       format: 'a4',
+     });
+     
+     const imgProps = pdf.getImageProperties(dataUrl);
+     const pdfWidth = pdf.internal.pageSize.getWidth();
+     const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+     
+     pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+     pdf.save(`enterra_chat_${new Date().toISOString().slice(0,10)}.pdf`);
+     
+  } catch (error) {
+     console.error("PDF Export failed:", error);
+     alert("Failed to create PDF. Please use browser print instead.");
+  }
+}
 </script>

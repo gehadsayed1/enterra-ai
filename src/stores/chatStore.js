@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { save, load } from "@/utils/storage";
 import { chatService } from "@/services/chatService";
 import { useFilesStore } from "./filesStore";
+import { useToast } from "vue-toastification";
 
 export const useChatStore = defineStore("chat", () => {
   const messages = ref(load("superai_chat", []));
@@ -104,12 +105,23 @@ export const useChatStore = defineStore("chat", () => {
 
   function newChat() {
     if (messages.value.length > 0) {
+      // Create a lightweight version of messages for history (remove audio/heavy data)
+      const lightweightMessages = messages.value.map((m) => {
+        const { audio, ...rest } = m;
+        return rest;
+      });
+
       history.value.push({
         id: Date.now(),
         title: messages.value[0]?.text?.slice(0, 30) || "New Chat",
-        messages: [...messages.value],
+        messages: lightweightMessages,
         createdAt: new Date().toISOString(),
       });
+
+      // Keep only last 20 chats to prevent overflowing storage
+      if (history.value.length > 20) {
+        history.value = history.value.slice(-20);
+      }
 
       save("superai_chat_history", history.value);
     }
@@ -180,6 +192,52 @@ export const useChatStore = defineStore("chat", () => {
     save("superai_chat_history", history.value);
   }
 
+  async function exportChatToWord() {
+    const filesStore = useFilesStore();
+    const toast = useToast(); // Ensure toast is initialized or available
+
+    if (!filesStore.currentDocSetId) {
+      toast.warning("No active document set used in this chat to export.");
+      return;
+    }
+
+    if (messages.value.length === 0) {
+      toast.info("Start a conversation first before exporting.");
+      return;
+    }
+
+    const toastId = toast.info("Generating Word document...", {
+      timeout: false,
+    });
+
+    try {
+      const blob = await chatService.exportDocx(
+        filesStore.currentDocSetId,
+        threadId.value
+      );
+
+      // Remove loading toast
+      toast.dismiss(toastId);
+
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `enterra_chat_${new Date().toISOString().slice(0, 10)}.docx`
+      );
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+
+      toast.success("Export downloaded successfully!");
+    } catch (e) {
+      toast.dismiss(toastId);
+      console.error("Export failed", e);
+      toast.error("Failed to export chat. Please try again.");
+    }
+  }
+
   function clearHistory() {
     history.value = [];
     save("superai_chat_history", []);
@@ -203,5 +261,6 @@ export const useChatStore = defineStore("chat", () => {
     clearChat,
     deleteChat,
     clearHistory,
+    exportChatToWord,
   };
 });
