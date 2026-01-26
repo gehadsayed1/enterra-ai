@@ -122,6 +122,7 @@
 <script setup>
 import { onMounted, onUnmounted, ref, computed } from 'vue';
 import { useChatStore } from "@/stores/chatStore";
+import { chatService } from "@/services/chatService";
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 
@@ -198,36 +199,38 @@ function getFemaleVoice(lang) {
   return femaleVoice || langVoices[0];
 }
 
-function playAudio() {
-  stopAudio(); // Ensure any previous audio is stopped
+async function playAudio() {
+  stopAudio();
 
   if (props.msg.audio) {
-    // Play server-provided audio (Base64)
+    // 1. Play already stored server-provided audio
     try {
       const audioSrc = `data:audio/mp3;base64,${props.msg.audio}`;
       audioObj = new Audio(audioSrc);
       
-      audioObj.onplay = () => {
-        isPlaying.value = true;
-      };
-      
-      audioObj.onended = () => {
-        isPlaying.value = false;
-        audioObj = null;
-      };
-      
-      audioObj.onerror = (e) => {
-        console.error("Audio playback error:", e);
-        isPlaying.value = false;
-        audioObj = null;
-      };
-      
+      audioObj.onplay = () => { isPlaying.value = true; };
+      audioObj.onended = () => { isPlaying.value = false; audioObj = null; };
+      audioObj.onerror = (e) => { console.error("Audio error", e); isPlaying.value = false; audioObj = null; };
       audioObj.play();
     } catch (e) {
       console.error("Error creating audio object:", e);
     }
   } else {
-    // Fallback to browser TTS
+    // 2. Try to fetch from Server TTS first
+    try {
+      isPlaying.value = true;
+      const data = await chatService.speech(cleanTextForSpeech(props.msg.text));
+      if (data && data.audio) {
+        // Cache it back to the message object so we don't fetch again
+        props.msg.audio = data.audio;
+        // Recursive call to play the new audio
+        return playAudio();
+      }
+    } catch (err) {
+      console.warn("Server TTS failed, falling back to Browser TTS", err);
+    }
+
+    // 3. Fallback to Browser TTS
     window.speechSynthesis.cancel(); 
     
     const text = cleanTextForSpeech(props.msg.text);
@@ -235,33 +238,14 @@ function playAudio() {
     const utter = new SpeechSynthesisUtterance(text);
     utter.lang = lang;
     
-    let voices = window.speechSynthesis.getVoices();
-    const speak = () => {
-         const voice = getFemaleVoice(lang);
-         if (voice) utter.voice = voice;
-         window.speechSynthesis.speak(utter);
-    };
-
-    if (voices.length === 0) {
-      window.speechSynthesis.onvoiceschanged = () => {
-        speak();
-        window.speechSynthesis.onvoiceschanged = null; 
-      };
-    } else {
-      speak();
-    }
+    const voice = getFemaleVoice(lang);
+    if (voice) utter.voice = voice;
     
-    utter.onstart = () => {
-      isPlaying.value = true;
-    };
+    utter.onstart = () => { isPlaying.value = true; };
+    utter.onend = () => { isPlaying.value = false; };
+    utter.onerror = () => { isPlaying.value = false; };
     
-    utter.onend = () => {
-      isPlaying.value = false;
-    };
-    
-    utter.onerror = () => {
-      isPlaying.value = false;
-    };
+    window.speechSynthesis.speak(utter);
   }
 
   if (props.msg.shouldPlay) {

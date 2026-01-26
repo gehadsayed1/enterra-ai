@@ -11,10 +11,10 @@ export const useChatStore = defineStore("chat", () => {
 
   // Session management
   const threadId = ref(
-    localStorage.getItem("ent-thread-id") || `thread_${Date.now()}`
+    localStorage.getItem("ent-thread-id") || `thread_${Date.now()}`,
   );
   const userId = ref(
-    localStorage.getItem("ent-user-id") || `user_${Date.now()}`
+    localStorage.getItem("ent-user-id") || `user_${Date.now()}`,
   );
 
   if (!localStorage.getItem("ent-thread-id"))
@@ -65,7 +65,7 @@ export const useChatStore = defineStore("chat", () => {
 
   function replaceBotLoading(replyText, options = {}) {
     const msg = messages.value.find(
-      (m) => m.loading === true && m.role === "bot"
+      (m) => m.loading === true && m.role === "bot",
     );
     if (msg) {
       msg.loading = false;
@@ -85,7 +85,7 @@ export const useChatStore = defineStore("chat", () => {
 
   function replaceVoiceLoading(transcript) {
     const msg = messages.value.find(
-      (m) => m.loading === true && m.role === "user"
+      (m) => m.loading === true && m.role === "user",
     );
     if (msg) {
       msg.loading = false;
@@ -156,28 +156,25 @@ export const useChatStore = defineStore("chat", () => {
     }
 
     try {
-      // isVoice is ignored for logic now as we treat all as chat message,
-      // but response might have audio if server generates it.
-
       const data = await chatService.sendMessage(
         userText,
         docSetId,
         threadId.value,
-        userId.value
+        userId.value,
       );
       console.log(data);
 
       replaceBotLoading(data.answer || "No reply found.", {
         isVoice,
-        audio: data.audio,
+        audio: data.audio, // Base64 audio from server
         citations: data.citations,
       });
     } catch (err) {
-      console.log("rerror:", err);
+      console.log("error:", err);
 
       replaceBotLoading(
         err.response?.data?.detail || "Error occurred while fetching response.",
-        { isVoice }
+        { isVoice },
       );
     }
   }
@@ -213,7 +210,7 @@ export const useChatStore = defineStore("chat", () => {
     try {
       const blob = await chatService.exportDocx(
         filesStore.currentDocSetId,
-        threadId.value
+        threadId.value,
       );
 
       // Remove loading toast
@@ -224,7 +221,7 @@ export const useChatStore = defineStore("chat", () => {
       link.href = url;
       link.setAttribute(
         "download",
-        `enterra_chat_${new Date().toISOString().slice(0, 10)}.docx`
+        `enterra_chat_${new Date().toISOString().slice(0, 10)}.docx`,
       );
       document.body.appendChild(link);
       link.click();

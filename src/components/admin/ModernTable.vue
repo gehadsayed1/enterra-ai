@@ -5,8 +5,11 @@
         <h2 class="text-2xl font-bold text-gray-800">{{ title }}</h2>
         <p class="text-sm text-gray-500 mt-1">{{ subtitle }}</p>
       </div>
-      <div v-if="showCount" class="bg-gradient-to-r from-purple-100 to-purple-200 px-4 py-2 rounded-lg">
-        <span class="text-purple-800 font-bold text-lg">{{ total }}</span>
+      <div class="flex items-center gap-4">
+        <slot name="extra-actions"></slot>
+        <div v-if="showCount" class="bg-gradient-to-r from-purple-100 to-purple-200 px-4 py-2 rounded-lg">
+          <span class="text-purple-800 font-bold text-lg">{{ total }}</span>
+        </div>
       </div>
     </div>
 

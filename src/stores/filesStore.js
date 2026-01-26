@@ -1,36 +1,30 @@
 import { defineStore } from "pinia";
 import { ref, watch } from "vue";
-import axios from "axios";
-import { CONFIG } from "@/config";
+import { ragService } from "@/services/ragService";
 import { useToast } from "vue-toastification";
 
 export const useFilesStore = defineStore("filesStore", () => {
   const files = ref(JSON.parse(localStorage.getItem("ent-files") || "[]"));
   const currentDocSetId = ref(localStorage.getItem("ent-doc-set-id") || null);
+  const stats = ref(JSON.parse(localStorage.getItem("ent-rag-stats") || "{}"));
   const toast = useToast();
 
   async function addFile(file, metadata = {}) {
     console.log("📂 [DEBUG] Preparing to ingest file:", file);
 
     try {
-      const formData = new FormData();
-      formData.append("files", file);
-      console.log(
-        "🚀 [DEBUG] Sending POST request to:",
-        `${CONFIG.API_BASE_URL}/ingest`
-      );
+      const data = await ragService.ingestDocuments(file);
 
-      const res = await axios.post(`${CONFIG.API_BASE_URL}/ingest`, formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
+      console.log("✅ [DEBUG] Ingest success. Response:", data);
 
-      console.log("✅ [DEBUG] Ingest success. Response:", res.data);
+      if (data.doc_set_id) {
+        currentDocSetId.value = data.doc_set_id;
+        localStorage.setItem("ent-doc-set-id", data.doc_set_id);
+      }
 
-      if (res.data.doc_set_id) {
-        currentDocSetId.value = res.data.doc_set_id;
-        localStorage.setItem("ent-doc-set-id", res.data.doc_set_id);
+      if (data.stats) {
+        stats.value = data.stats;
+        localStorage.setItem("ent-rag-stats", JSON.stringify(data.stats));
       }
 
       toast.success("File and context prepared successfully");
@@ -41,29 +35,34 @@ export const useFilesStore = defineStore("filesStore", () => {
         size: file.size,
         date: new Date(),
         type: "file",
-        apiResponse: res.data.message,
-        docSetId: res.data.doc_set_id,
-        summary: res.data.document_summary,
+        apiResponse: data.message,
+        docSetId: data.doc_set_id,
+        summary: data.document_summary,
       });
 
-      return res.data;
+      return data;
     } catch (err) {
       console.error("❌ [DEBUG] Upload failed:", err);
-      if (err.response) {
-        toast.error(`Error: ${err.response.data.detail || "Upload failed"}`);
-      } else {
-        toast.error("Network error during upload.");
-      }
+      toast.error(err.response?.data?.message || "Upload failed");
       throw err;
     }
   }
 
-  // Keeping other methods but they might fail if backend doesn't support them.
-  // The user only specified the new API for ingest/chat/tts.
-
-  async function addMultipleURLs(urlList, metadata = {}) {
-    // Implementation kept as placeholder or legacy
-    console.warn("addMultipleURLs might not be supported by the new backend.");
+  async function resetKnowledgeBase() {
+    try {
+      await ragService.resetKB();
+      files.value = [];
+      currentDocSetId.value = null;
+      stats.value = {};
+      localStorage.removeItem("ent-doc-set-id");
+      localStorage.removeItem("ent-files");
+      localStorage.removeItem("ent-rag-stats");
+      toast.success("Knowledge base cleared successfully.");
+    } catch (err) {
+      console.error("Reset failed:", err);
+      toast.error("Failed to reset knowledge base.");
+      throw err;
+    }
   }
 
   function deleteFile(id) {
@@ -71,6 +70,7 @@ export const useFilesStore = defineStore("filesStore", () => {
   }
 
   // Legacy/Placeholder
+  async function addMultipleURLs(urlList, metadata = {}) {}
   async function addDatabase(tables, metadata = {}) {}
   async function addFolder(path, metadata = {}) {}
 
@@ -79,16 +79,18 @@ export const useFilesStore = defineStore("filesStore", () => {
     () => {
       localStorage.setItem("ent-files", JSON.stringify(files.value));
     },
-    { deep: true }
+    { deep: true },
   );
 
   return {
     files,
     currentDocSetId,
+    stats,
     addFile,
     addMultipleURLs,
     deleteFile,
     addDatabase,
     addFolder,
+    resetKnowledgeBase,
   };
 });

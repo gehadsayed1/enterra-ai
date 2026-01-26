@@ -2,6 +2,16 @@ import axios from "axios";
 import { CONFIG } from "@/config";
 
 class ChatService {
+  constructor() {
+    this.api = axios.create({
+      baseURL: CONFIG.API_BASE_URL,
+      headers: {
+        "X-Tenant-ID": "default",
+      },
+      timeout: 60000,
+    });
+  }
+
   /**
    * Sends a text query to the server.
    * @param {string} message - The user's message.
@@ -14,25 +24,31 @@ class ChatService {
     console.log("🚀 Sending to API:", { message, docSetId, threadId, userId });
 
     try {
-      const response = await axios.post(
-        `${CONFIG.API_BASE_URL}/chat`,
-        {
-          message,
-          doc_set_id: docSetId,
-          thread_id: threadId,
-          user_id: userId,
-        },
-        {
-          timeout: 60000,
-          headers: {
-            "X-Tenant-ID": "default",
-          },
-        }
-      );
+      const response = await this.api.post("/chat", {
+        message,
+        doc_set_id: docSetId,
+        thread_id: threadId,
+        user_id: userId,
+      });
       console.log("✅ API Response:", response.data);
       return response.data;
     } catch (error) {
       console.error("API Error:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generates audio from text using the backend TTS engine.
+   * @param {string} text
+   * @returns {Promise<{audio: string}>}
+   */
+  async speech(text) {
+    try {
+      const response = await this.api.post("/tts", { text });
+      return response.data;
+    } catch (error) {
+      console.error("TTS Error:", error);
       throw error;
     }
   }
@@ -45,19 +61,16 @@ class ChatService {
    */
   async exportDocx(docSetId, threadId) {
     try {
-      const response = await axios.post(
-        `${CONFIG.API_BASE_URL}/export-to-word`,
+      const response = await this.api.post(
+        "/export-to-word",
         {
-          message: "Requesting export", // Backend needs a dummy message or context
+          message: "Requesting export",
           doc_set_id: docSetId,
           thread_id: threadId,
         },
         {
-          responseType: "blob", // Important for binary files
-          headers: {
-            "Content-Type": "application/json",
-          },
-        }
+          responseType: "blob",
+        },
       );
       return response.data;
     } catch (error) {
