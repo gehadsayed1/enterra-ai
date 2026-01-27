@@ -78,6 +78,24 @@ class ChatService {
       throw error;
     }
   }
+
+  /**
+   * Downloads a file from the server given its internal path.
+   * @param {string} serverPath - The absolute path on the server.
+   * @returns {Promise<Blob>}
+   */
+  async downloadFile(serverPath) {
+    try {
+      const response = await this.api.get("/download", {
+        params: { path: serverPath },
+        responseType: "blob",
+      });
+      return response.data;
+    } catch (error) {
+      console.error("Download Error:", error);
+      throw error;
+    }
+  }
 }
 
 export const chatService = new ChatService();

@@ -13,7 +13,9 @@ export const useFilesStore = defineStore("filesStore", () => {
     console.log("📂 [DEBUG] Preparing to ingest file:", file);
 
     try {
-      const data = await ragService.ingestDocuments(file);
+      const userId =
+        localStorage.getItem("ent-user-id") || `user_${Date.now()}`;
+      const data = await ragService.ingestDocuments(file, "default", userId);
 
       console.log("✅ [DEBUG] Ingest success. Response:", data);
 

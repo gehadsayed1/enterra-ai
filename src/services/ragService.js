@@ -28,8 +28,9 @@ class RAGService {
    * Uploads and processes documents.
    * @param {FileList|File[]} files
    * @param {string} tenantId
+   * @param {string} userId
    */
-  async ingestDocuments(files, tenantId = "default") {
+  async ingestDocuments(files, tenantId = "default", userId = null) {
     try {
       const formData = new FormData();
       if (files instanceof FileList) {
@@ -42,15 +43,27 @@ class RAGService {
         formData.append("files", files); // Single file
       }
 
-      const response = await this.api.post("/ingest", formData, {
-        params: { tenant_id: tenantId },
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+      console.log("📤 [DEBUG] File details:", {
+        name: files.name || "Multiple Files",
+        size: files.size || "Multiple",
+        type: files.type || "N/A",
+      });
+
+      const params = { tenant_id: tenantId };
+      if (userId) {
+        params.user_id = userId;
+      }
+
+      const response = await this.api.postForm("/ingest", formData, {
+        params,
       });
       return response.data;
     } catch (error) {
-      console.error("Ingestion Error:", error);
+      console.error(
+        "Ingestion Error Detail:",
+        error.response?.data || error.message,
+      );
+      console.error("Full Error Object:", error);
       throw error;
     }
   }

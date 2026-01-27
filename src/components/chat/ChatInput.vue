@@ -55,7 +55,7 @@
       </div>
 
       <button
-        class="w-12 h-12 bg-primary text-white flex items-center justify-center rounded-xl ml-3 shrink-0"
+        class="w-12 h-12 bg-primary cursor-pointer text-white flex items-center justify-center rounded-xl ml-3 shrink-0"
         @click="submit"
       >
         <svg
@@ -81,7 +81,7 @@
       <span class="text-gray-400 text-xs"> {{ text.length }}/1500 </span>
 
       <button
-        class="flex items-center gap-1.5 text-xs text-gray-500 hover:text-primary transition px-2 py-1 rounded-md hover:bg-gray-100"
+        class="flex items-center gap-1.5 text-xs cursor-pointer text-gray-500 hover:text-primary transition px-2 py-1 rounded-md hover:bg-gray-100"
         title="Export Chat to Word"
         @click="exportChat"
       >

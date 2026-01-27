@@ -78,6 +78,19 @@ export const useChatStore = defineStore("chat", () => {
       if (options.citations) {
         msg.citations = options.citations;
       }
+
+      // Automatically detect if response contains a file path or URL (especially for .pptx)
+      // First try to match server path
+      const pathMatch = replyText.match(/`?(\/opt\/[^`\s]+\.pptx)`?/i);
+      if (pathMatch) {
+        msg.serverFilePath = pathMatch[1];
+      } else {
+        // Fallback to URL match
+        const urlMatch = replyText.match(/(https?:\/\/[^\s<>"]+\.pptx)/i);
+        if (urlMatch) {
+          msg.downloadUrl = urlMatch[1];
+        }
+      }
     }
 
     save("superai_chat", messages.value);
@@ -235,6 +248,47 @@ export const useChatStore = defineStore("chat", () => {
     }
   }
 
+  async function downloadLocalFile(filePathOrUrl) {
+    const toast = useToast();
+    const toastId = toast.info("Downloading file...", { timeout: false });
+
+    try {
+      let downloadUrl;
+
+      // Check if it's a server path (starts with /) or a direct URL
+      if (filePathOrUrl.startsWith("/")) {
+        // It's a server path, use the download API to get the file as blob
+        const blob = await chatService.downloadFile(filePathOrUrl);
+        const fileName = filePathOrUrl.split("/").pop();
+        const url = window.URL.createObjectURL(new Blob([blob]));
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", fileName);
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } else {
+        // It's a direct URL, download directly
+        const fileName = filePathOrUrl.split("/").pop();
+        const link = document.createElement("a");
+        link.href = filePathOrUrl;
+        link.setAttribute("download", fileName);
+        link.setAttribute("target", "_blank");
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+      }
+
+      toast.dismiss(toastId);
+      toast.success("Download started successfully!");
+    } catch (e) {
+      toast.dismiss(toastId);
+      console.error("Download failed", e);
+      toast.error("Failed to download file from server.");
+    }
+  }
+
   function clearHistory() {
     history.value = [];
     save("superai_chat_history", []);
@@ -259,5 +313,6 @@ export const useChatStore = defineStore("chat", () => {
     deleteChat,
     clearHistory,
     exportChatToWord,
+    downloadLocalFile,
   };
 });

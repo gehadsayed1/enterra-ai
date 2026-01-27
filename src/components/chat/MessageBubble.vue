@@ -104,6 +104,19 @@
              Download Word File
            </button>
         </div>
+
+        <!-- Download PPTX Button (If detected) -->
+        <div v-if="msg.serverFilePath || msg.downloadUrl" class="mt-3 pt-2 border-t border-gray-100">
+           <button 
+             @click="downloadPptx"
+             class="flex items-center gap-2 cursor-pointer bg-orange-50 text-orange-600 px-3 py-2 rounded-lg text-xs font-semibold hover:bg-orange-100 transition-colors w-full justify-center"
+           >
+             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+               <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0V3m7.5 0v13.5m-7.5-13.5h7.5" />
+             </svg>
+             Download PowerPoint (.pptx)
+           </button>
+        </div>
       </div>
 
       <span
@@ -138,7 +151,15 @@ function toggleSources() {
 
 const formattedText = computed(() => {
   if (!props.msg.text) return '';
-  const rawHtml = marked.parse(props.msg.text);
+  
+  // Hide the download URL or server path from the display text
+  let textToProcess = props.msg.text;
+  textToProcess = textToProcess.replace(/Download it here:\s*`?(\/opt\/[^`\s]+\.pptx)`?/gi, '');
+  textToProcess = textToProcess.replace(/`?(\/opt\/[^`\s]+\.pptx)`?/gi, ''); // Fallback for raw server paths
+  textToProcess = textToProcess.replace(/Download it here:\s*(https?:\/\/[^\s<>"]+\.pptx)/gi, '');
+  textToProcess = textToProcess.replace(/(https?:\/\/[^\s<>"]+\.pptx)/gi, ''); // Fallback for raw URLs
+  
+  const rawHtml = marked.parse(textToProcess);
   return DOMPurify.sanitize(rawHtml);
 });
 
@@ -168,6 +189,13 @@ function downloadExport() {
   } else {
     console.error("Export function not found in chat store");
     alert("Function not available, please reload page.");
+  }
+}
+
+function downloadPptx() {
+  const filePathOrUrl = props.msg.serverFilePath || props.msg.downloadUrl;
+  if (filePathOrUrl) {
+    chat.downloadLocalFile(filePathOrUrl);
   }
 }
 

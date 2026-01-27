@@ -25,7 +25,7 @@
         </p>
 
         <p class="text-gray-500 text-sm mt-2">
-          Supported formats: PDF, PNG, JPG, TXT, DOCX
+          Supported formats: PDF, DOCX, TXT, Excel (XLSX, XLS), CSV, Images (PNG, JPG)
         </p>
 
         <p v-if="selectedLocalFile"
