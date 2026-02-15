@@ -10,8 +10,22 @@
         class="flex-1 overflow-y-auto max-h-[calc(100vh-300px)]"
       >
         <div class="flex flex-col items-center justify-center mt-10 mb-6 gap-8">
-          <ChatGreeting v-if="!chat.messages.length" />
-          <QuickActions v-if="!chat.messages.length" />
+          <template v-if="!chat.messages.length">
+            <ChatGreeting v-if="chat.activeMode !== 'ppt'" />
+            <QuickActions v-if="chat.activeMode !== 'ppt'" />
+
+            <div
+              v-else
+              class="max-w-2xl mx-auto text-center bg-white border border-orange-200 rounded-2xl shadow-sm p-8"
+            >
+              <h3 class="text-2xl font-semibold text-gray-800">
+                PPT Agent Ready
+              </h3>
+              <p class="mt-3 text-gray-600">
+                Write a detailed brief in the input below, then wait for the generated PowerPoint download link.
+              </p>
+            </div>
+          </template>
         </div>
 
         <ChatWindow />

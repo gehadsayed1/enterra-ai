@@ -18,19 +18,26 @@ class ChatService {
    * @param {string} docSetId - The document set ID from ingestion.
    * @param {string} threadId - The conversation thread ID.
    * @param {string} userId - The user ID.
+   * @param {{ timeoutMs?: number }} options - Optional request options.
    * @returns {Promise<{answer: string, citations: Array, audio: string|null}>}
    */
-  async sendMessage(message, docSetId, threadId, userId) {
-    console.log("🚀 Sending to API:", { message, docSetId, threadId, userId });
+  async sendMessage(message, docSetId, threadId, userId, options = {}) {
+    console.log("Sending to API:", { message, docSetId, threadId, userId });
 
     try {
-      const response = await this.api.post("/chat", {
-        message,
-        doc_set_id: docSetId,
-        thread_id: threadId,
-        user_id: userId,
-      });
-      console.log("✅ API Response:", response.data);
+      const response = await this.api.post(
+        "/chat",
+        {
+          message,
+          doc_set_id: docSetId,
+          thread_id: threadId,
+          user_id: userId,
+        },
+        {
+          timeout: options.timeoutMs || this.api.defaults.timeout,
+        },
+      );
+      console.log("API Response:", response.data);
       return response.data;
     } catch (error) {
       console.error("API Error:", error);

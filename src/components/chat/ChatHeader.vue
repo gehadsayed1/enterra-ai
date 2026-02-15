@@ -6,6 +6,8 @@
 
 
     <button
+      v-if="isAdmin"
+      type="button"
       @click="goToDashboard"
       class="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2.5 rounded-xl font-semibold shadow-sm hover:bg-gray-200 transition cursor-pointer"
       title="Go to Dashboard"
@@ -17,6 +19,7 @@
     </button>
 
     <button
+      type="button"
       @click="handleNewChat"
       class="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-xl font-semibold shadow-sm hover:bg-primary/80 transition cursor-pointer"
     >
@@ -26,11 +29,15 @@
   </div>
 </template>
 <script setup>
+import { computed } from 'vue';
 import { useChatStore } from '@/stores/chatStore';
+import { useAuthStore } from '@/stores/authStore';
 import { useRouter } from 'vue-router';
 
 const chat = useChatStore();
+const auth = useAuthStore();
 const router = useRouter();
+const isAdmin = computed(() => auth.role === 'admin');
 
 function handleNewChat() {
   chat.newChat();

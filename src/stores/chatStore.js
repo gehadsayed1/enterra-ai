@@ -4,12 +4,13 @@ import { save, load } from "@/utils/storage";
 import { chatService } from "@/services/chatService";
 import { useFilesStore } from "./filesStore";
 import { useToast } from "vue-toastification";
+import { CONFIG } from "@/config";
 
 export const useChatStore = defineStore("chat", () => {
   const messages = ref(load("superai_chat", []));
   const history = ref(load("superai_chat_history", []));
+  const activeMode = ref(load("superai_chat_mode", "chat"));
 
-  // Session management
   const threadId = ref(
     localStorage.getItem("ent-thread-id") || `thread_${Date.now()}`,
   );
@@ -17,10 +18,17 @@ export const useChatStore = defineStore("chat", () => {
     localStorage.getItem("ent-user-id") || `user_${Date.now()}`,
   );
 
-  if (!localStorage.getItem("ent-thread-id"))
+  if (!localStorage.getItem("ent-thread-id")) {
     localStorage.setItem("ent-thread-id", threadId.value);
-  if (!localStorage.getItem("ent-user-id"))
+  }
+  if (!localStorage.getItem("ent-user-id")) {
     localStorage.setItem("ent-user-id", userId.value);
+  }
+
+  function setActiveMode(mode) {
+    activeMode.value = mode === "ppt" ? "ppt" : "chat";
+    save("superai_chat_mode", activeMode.value);
+  }
 
   function addMessage(msg) {
     const isFirstMessage = messages.value.length === 0;
@@ -63,6 +71,72 @@ export const useChatStore = defineStore("chat", () => {
     save("superai_chat", messages.value);
   }
 
+  function buildPptPrompt(userText) {
+    return [
+      "Make a PowerPoint presentation about:",
+      userText,
+      "",
+      "Return a direct download link for the generated .pptx file.",
+    ].join("\n");
+  }
+
+  function detectPptDownloadTarget(replyText = "") {
+    const protocolRelativeMatch = replyText.match(
+      /(\/\/(?:localhost|127\.0\.0\.1|0\.0\.0\.0)(?::\d+)?\/[^\s)]+\.pptx)/i,
+    );
+    if (protocolRelativeMatch) {
+      return {
+        serverFilePath: null,
+        downloadUrl: normalizeDownloadUrl(protocolRelativeMatch[1]),
+      };
+    }
+
+    const pathMatch = replyText.match(/`?(\/(?!\/)[^`\s]+\.pptx)`?/i);
+    if (pathMatch) {
+      return { serverFilePath: pathMatch[1], downloadUrl: null };
+    }
+
+    const markdownLinkMatch = replyText.match(
+      /\[[^\]]+\]\((https?:\/\/[^\s)]+)\)/i,
+    );
+    if (markdownLinkMatch) {
+      return {
+        serverFilePath: null,
+        downloadUrl: normalizeDownloadUrl(markdownLinkMatch[1]),
+      };
+    }
+
+    const urlMatch = replyText.match(/(https?:\/\/[^\s<>"]+)/i);
+    if (urlMatch) {
+      return {
+        serverFilePath: null,
+        downloadUrl: normalizeDownloadUrl(urlMatch[1]),
+      };
+    }
+
+    return { serverFilePath: null, downloadUrl: null };
+  }
+
+  function normalizeDownloadUrl(rawUrl) {
+    if (!rawUrl) return rawUrl;
+    try {
+      const productionBase = new URL(CONFIG.API_BASE_URL);
+      const withScheme = rawUrl.startsWith("//")
+        ? `${productionBase.protocol}${rawUrl}`
+        : rawUrl;
+      const url = new URL(withScheme);
+      const isLocalHost =
+        url.hostname === "localhost" ||
+        url.hostname === "127.0.0.1" ||
+        url.hostname === "0.0.0.0";
+      if (!isLocalHost) return withScheme;
+
+      return `${productionBase.origin}${url.pathname}${url.search}${url.hash}`;
+    } catch {
+      return rawUrl;
+    }
+  }
+
   function replaceBotLoading(replyText, options = {}) {
     const msg = messages.value.find(
       (m) => m.loading === true && m.role === "bot",
@@ -73,23 +147,22 @@ export const useChatStore = defineStore("chat", () => {
       msg.hasVoicePlayback = true;
       msg.shouldPlay = true;
       if (options.audio) {
-        msg.audio = options.audio; // Can be Base64 string now
+        msg.audio = options.audio;
       }
       if (options.citations) {
         msg.citations = options.citations;
       }
 
-      // Automatically detect if response contains a file path or URL (especially for .pptx)
-      // First try to match server path
-      const pathMatch = replyText.match(/`?(\/opt\/[^`\s]+\.pptx)`?/i);
-      if (pathMatch) {
-        msg.serverFilePath = pathMatch[1];
-      } else {
-        // Fallback to URL match
-        const urlMatch = replyText.match(/(https?:\/\/[^\s<>"]+\.pptx)/i);
-        if (urlMatch) {
-          msg.downloadUrl = urlMatch[1];
-        }
+      const { serverFilePath, downloadUrl } =
+        detectPptDownloadTarget(replyText);
+      if (serverFilePath) {
+        msg.serverFilePath = serverFilePath;
+      }
+      if (downloadUrl) {
+        msg.downloadUrl = downloadUrl;
+      }
+      if (serverFilePath || downloadUrl) {
+        msg.pptReady = true;
       }
     }
 
@@ -118,7 +191,6 @@ export const useChatStore = defineStore("chat", () => {
 
   function newChat() {
     if (messages.value.length > 0) {
-      // Create a lightweight version of messages for history (remove audio/heavy data)
       const lightweightMessages = messages.value.map((m) => {
         const { audio, ...rest } = m;
         return rest;
@@ -131,7 +203,6 @@ export const useChatStore = defineStore("chat", () => {
         createdAt: new Date().toISOString(),
       });
 
-      // Keep only last 20 chats to prevent overflowing storage
       if (history.value.length > 20) {
         history.value = history.value.slice(-20);
       }
@@ -150,41 +221,39 @@ export const useChatStore = defineStore("chat", () => {
     if (!prev) return;
 
     messages.value = prev.messages.map((m) => ({ ...m, shouldPlay: false }));
-
     save("superai_chat", messages.value);
   }
 
-  async function sendMessageToAPI(userText, isVoice = false) {
+  async function sendMessageToAPI(userText, isVoice = false, options = {}) {
+    const mode = options.mode === "ppt" ? "ppt" : "chat";
     addMessage({ role: "user", text: userText });
-
     addBotLoading();
-    console.log(userText);
 
     const filesStore = useFilesStore();
     const docSetId = filesStore.currentDocSetId;
 
     if (!docSetId) {
-      replaceBotLoading("⚠️ Please upload a document to start the chat.");
+      replaceBotLoading("Please upload a document first to start chatting.");
       return;
     }
 
     try {
+      const messageToSend =
+        mode === "ppt" ? buildPptPrompt(userText) : userText;
       const data = await chatService.sendMessage(
-        userText,
+        messageToSend,
         docSetId,
         threadId.value,
         userId.value,
+        { timeoutMs: mode === "ppt" ? 180000 : 60000 },
       );
-      console.log(data);
 
       replaceBotLoading(data.answer || "No reply found.", {
         isVoice,
-        audio: data.audio, // Base64 audio from server
+        audio: data.audio,
         citations: data.citations,
       });
     } catch (err) {
-      console.log("error:", err);
-
       replaceBotLoading(
         err.response?.data?.detail || "Error occurred while fetching response.",
         { isVoice },
@@ -204,7 +273,7 @@ export const useChatStore = defineStore("chat", () => {
 
   async function exportChatToWord() {
     const filesStore = useFilesStore();
-    const toast = useToast(); // Ensure toast is initialized or available
+    const toast = useToast();
 
     if (!filesStore.currentDocSetId) {
       toast.warning("No active document set used in this chat to export.");
@@ -226,7 +295,6 @@ export const useChatStore = defineStore("chat", () => {
         threadId.value,
       );
 
-      // Remove loading toast
       toast.dismiss(toastId);
 
       const url = window.URL.createObjectURL(new Blob([blob]));
@@ -253,13 +321,82 @@ export const useChatStore = defineStore("chat", () => {
     const toastId = toast.info("Downloading file...", { timeout: false });
 
     try {
-      let downloadUrl;
+      const pptMatch =
+        filePathOrUrl &&
+        filePathOrUrl.match(/(?:^|[\\/])([^\\/?#]+\.pptx)(?:[?#]|$)/i);
 
-      // Check if it's a server path (starts with /) or a direct URL
-      if (filePathOrUrl.startsWith("/")) {
-        // It's a server path, use the download API to get the file as blob
-        const blob = await chatService.downloadFile(filePathOrUrl);
-        const fileName = filePathOrUrl.split("/").pop();
+      if (pptMatch) {
+        const filename = pptMatch[1];
+
+        try {
+          const response = await fetch(
+            `${CONFIG.API_BASE_URL}/ppt-downloads-url/${filename}`,
+          );
+
+          if (!response.ok) {
+            throw new Error(
+              `Failed to fetch PPT download URL: ${response.statusText}`,
+            );
+          }
+
+          const data = await response.json();
+
+          if (data.download_url) {
+            try {
+              const pptRes = await fetch(data.download_url);
+              if (!pptRes.ok)
+                throw new Error(`Failed to download PPT: ${pptRes.statusText}`);
+              const blob = await pptRes.blob();
+              const url = window.URL.createObjectURL(blob);
+
+              const link = document.createElement("a");
+              link.href = url;
+              link.setAttribute("download", filename);
+              document.body.appendChild(link);
+              link.click();
+              link.parentNode.removeChild(link);
+              window.URL.revokeObjectURL(url);
+
+              toast.dismiss(toastId);
+              toast.success("Download started successfully!");
+              return;
+            } catch (pptErr) {
+              console.error("PPT blob download failed", pptErr);
+              throw pptErr;
+            }
+          }
+        } catch (err) {
+          console.error("PPT download resolution failed", err);
+          throw err;
+        }
+      }
+
+      const normalizedInput = normalizeDownloadUrl(filePathOrUrl);
+      const productionBase = new URL(CONFIG.API_BASE_URL);
+
+      if (
+        normalizedInput.startsWith("/ppt-downloads/") ||
+        normalizedInput.startsWith(`${productionBase.origin}/ppt-downloads/`)
+      ) {
+        const directUrl = normalizedInput.startsWith("http")
+          ? normalizedInput
+          : `${productionBase.origin}${normalizedInput}`;
+        const fileName = directUrl.split("/").pop();
+        const link = document.createElement("a");
+        link.href = directUrl;
+        link.setAttribute("download", fileName);
+        link.setAttribute("target", "_blank");
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+        toast.dismiss(toastId);
+        toast.success("Download started successfully!");
+        return;
+      }
+
+      if (normalizedInput.startsWith("/")) {
+        const blob = await chatService.downloadFile(normalizedInput);
+        const fileName = normalizedInput.split("/").pop();
         const url = window.URL.createObjectURL(new Blob([blob]));
         const link = document.createElement("a");
         link.href = url;
@@ -269,10 +406,9 @@ export const useChatStore = defineStore("chat", () => {
         link.parentNode.removeChild(link);
         window.URL.revokeObjectURL(url);
       } else {
-        // It's a direct URL, download directly
-        const fileName = filePathOrUrl.split("/").pop();
+        const fileName = normalizedInput.split("/").pop();
         const link = document.createElement("a");
-        link.href = filePathOrUrl;
+        link.href = normalizedInput;
         link.setAttribute("download", fileName);
         link.setAttribute("target", "_blank");
         document.body.appendChild(link);
@@ -294,12 +430,13 @@ export const useChatStore = defineStore("chat", () => {
     save("superai_chat_history", []);
   }
 
-  // Initialize: ensure no messages auto-play on reload
   messages.value.forEach((m) => (m.shouldPlay = false));
 
   return {
     messages,
     history,
+    activeMode,
+    setActiveMode,
     addMessage,
     addBotLoading,
     addVoiceLoading,

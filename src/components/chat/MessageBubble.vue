@@ -105,17 +105,20 @@
            </button>
         </div>
 
-        <!-- Download PPTX Button (If detected) -->
-        <div v-if="msg.serverFilePath || msg.downloadUrl" class="mt-3 pt-2 border-t border-gray-100">
-           <button 
-             @click="downloadPptx"
-             class="flex items-center gap-2 cursor-pointer bg-orange-50 text-orange-600 px-3 py-2 rounded-lg text-xs font-semibold hover:bg-orange-100 transition-colors w-full justify-center"
-           >
-             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
-               <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3v11.25A2.25 2.25 0 0 0 6 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0 1 18 16.5h-2.25m-7.5 0h7.5m-7.5 0V3m7.5 0v13.5m-7.5-13.5h7.5" />
-             </svg>
-             Download PowerPoint (.pptx)
-           </button>
+        <div v-if="hasPptDownload" class="mt-3 pt-3 border-t border-gray-100">
+          <div class="mb-2 text-xs font-semibold text-orange-700">
+            Presentation ready
+          </div>
+          <button
+            type="button"
+            @click="downloadPptx"
+            class="flex items-center gap-2 cursor-pointer bg-gradient-to-r from-orange-500 to-amber-500 text-white px-3 py-2 rounded-lg text-xs font-semibold hover:opacity-90 transition-colors w-full justify-center"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v2.25A2.25 2.25 0 0 1 17.25 18.75H6.75A2.25 2.25 0 0 1 4.5 16.5v-2.25m7.5-9v9m0 0 3-3m-3 3-3-3" />
+            </svg>
+            Download PowerPoint
+          </button>
         </div>
       </div>
 
@@ -152,15 +155,25 @@ function toggleSources() {
 const formattedText = computed(() => {
   if (!props.msg.text) return '';
   
-  // Hide the download URL or server path from the display text
+  // Hide the download URL/server path from the display text and keep only cleaned content.
   let textToProcess = props.msg.text;
   textToProcess = textToProcess.replace(/Download it here:\s*`?(\/opt\/[^`\s]+\.pptx)`?/gi, '');
   textToProcess = textToProcess.replace(/`?(\/opt\/[^`\s]+\.pptx)`?/gi, ''); // Fallback for raw server paths
   textToProcess = textToProcess.replace(/Download it here:\s*(https?:\/\/[^\s<>"]+\.pptx)/gi, '');
   textToProcess = textToProcess.replace(/(https?:\/\/[^\s<>"]+\.pptx)/gi, ''); // Fallback for raw URLs
+  if (props.msg.downloadUrl) {
+    textToProcess = textToProcess.replace(props.msg.downloadUrl, '');
+  }
+  if (props.msg.serverFilePath) {
+    textToProcess = textToProcess.replace(props.msg.serverFilePath, '');
+  }
   
   const rawHtml = marked.parse(textToProcess);
   return DOMPurify.sanitize(rawHtml);
+});
+
+const hasPptDownload = computed(() => {
+  return Boolean(props.msg.serverFilePath || props.msg.downloadUrl || props.msg.pptReady);
 });
 
 const messageDirection = computed(() => {
