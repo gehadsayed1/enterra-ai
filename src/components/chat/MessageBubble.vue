@@ -105,20 +105,36 @@
            </button>
         </div>
 
-        <div v-if="hasPptDownload" class="mt-3 pt-3 border-t border-gray-100">
-          <div class="mb-2 text-xs font-semibold text-orange-700">
-            Presentation ready
+        <div v-if="hasPptDownload" class="mt-4 pt-4 border-t border-gray-100">
+          <div class="bg-gray-50 rounded-xl border border-gray-200 overflow-hidden group hover:border-orange-300 transition-colors duration-300">
+            <div class="p-4 flex items-start gap-4">
+              <!-- PPT Icon -->
+              <div class="w-12 h-12 bg-orange-100 text-orange-600 rounded-lg flex items-center justify-center shrink-0 shadow-sm border border-orange-200">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-7 h-7">
+                  <path fill-rule="evenodd" d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V12.75A3.75 3.75 0 0 0 16.5 9h-1.875a1.875 1.875 0 0 1-1.875-1.875V5.25A3.75 3.75 0 0 0 9 1.5H5.625ZM7.5 15a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5A.75.75 0 0 1 7.5 15Zm.75 2.25a.75.75 0 0 0 0 1.5h7.5a.75.75 0 0 0 0-1.5h-7.5Z" clip-rule="evenodd" />
+                  <path d="M12.971 1.816A5.23 5.23 0 0 1 14.25 5.25v1.875c0 .207.168.375.375.375H16.5a5.23 5.23 0 0 1 3.434 1.279 9.768 9.768 0 0 0-6.963-6.963Z" />
+                </svg>
+              </div>
+              
+              <!-- Content -->
+              <div class="flex-1">
+                <h3 class="font-bold text-gray-900 text-sm">Presentation Ready</h3>
+                <p class="text-xs text-gray-500 mt-0.5">PowerPoint Presentation (.pptx)</p>
+                <div class="mt-3">
+                  <button
+                    type="button"
+                    @click="downloadPptx"
+                    class="inline-flex items-center gap-2 bg-gradient-to-r from-orange-500 to-amber-600 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-sm shadow-orange-200 hover:shadow-md hover:shadow-orange-300 hover:scale-[1.02] transition-all transform active:scale-95"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    Download File
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-          <button
-            type="button"
-            @click="downloadPptx"
-            class="flex items-center gap-2 cursor-pointer bg-gradient-to-r from-orange-500 to-amber-500 text-white px-3 py-2 rounded-lg text-xs font-semibold hover:opacity-90 transition-colors w-full justify-center"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="w-4 h-4">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v2.25A2.25 2.25 0 0 1 17.25 18.75H6.75A2.25 2.25 0 0 1 4.5 16.5v-2.25m7.5-9v9m0 0 3-3m-3 3-3-3" />
-            </svg>
-            Download PowerPoint
-          </button>
         </div>
       </div>
 
